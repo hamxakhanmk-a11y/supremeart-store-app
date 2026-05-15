@@ -1,0 +1,10 @@
+{
+  "name": "supreme-art-store-app",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  }
+}

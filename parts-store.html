@@ -359,20 +359,9 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let state = {
-  categories: ['Bearings','Inks','Belts','Seals','Filters','Fasteners','Lubricants','Electrical','Hydraulics','Other'],
-  parts: [
-    {id:1,name:'Bearing 6204',category:'Bearings',unit:'pcs',qty:24,minQty:5,desc:'Deep groove ball bearing'},
-    {id:2,name:'Black Ink 1L',category:'Inks',unit:'liters',qty:3,minQty:10,desc:'Printing ink'},
-    {id:3,name:'V-Belt A45',category:'Belts',unit:'pcs',qty:12,minQty:4,desc:'V-belt for motor drives'},
-    {id:4,name:'Hydraulic Oil 46',category:'Hydraulics',unit:'liters',qty:40,minQty:20,desc:'ISO VG 46'},
-  ],
-  transactions: [
-    {id:1,type:'in',partId:1,qty:10,date:'2026-05-01',ref:'PO-001',notes:'Monthly restock',issuedTo:'',purpose:''},
-    {id:2,type:'out',partId:2,qty:2,date:'2026-05-03',ref:'',notes:'',issuedTo:'Press Dept',purpose:'Printing run'},
-    {id:3,type:'out',partId:1,qty:4,date:'2026-05-10',ref:'',notes:'',issuedTo:'Maintenance',purpose:'Machine A repair'},
-    {id:4,type:'in',partId:3,qty:6,date:'2026-05-11',ref:'PO-002',notes:'',issuedTo:'',purpose:''},
-  ],
-  nextPartId:5, nextTxnId:5
+  categories: [],
+  parts: [],
+  transactions: []
 };
 
 let _activeSection = '';
@@ -381,12 +370,35 @@ function today(){return new Date().toISOString().split('T')[0]}
 function fmtDate(d){if(!d)return'';return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
 function nowStr(){return new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
 
-function showPage(id,el){
+async function apiFetch(url, method='GET', body=null){
+  const opts={method,headers:{'Content-Type':'application/json'}};
+  if(body!==null)opts.body=JSON.stringify(body);
+  const r=await fetch(url,opts);
+  const data=await r.json();
+  if(!r.ok)throw new Error(data.error||'Request failed');
+  return data;
+}
+
+async function loadAll(){
+  try{
+    const [categories,parts,transactions]=await Promise.all([
+      apiFetch('/api/categories'),
+      apiFetch('/api/parts'),
+      apiFetch('/api/transactions')
+    ]);
+    state.categories=categories;
+    state.parts=parts;
+    state.transactions=transactions;
+  }catch(e){console.error('Failed to load data:',e);}
+  renderAll();
+}
+
+async function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  renderAll();
+  await loadAll();
 }
 
 function openModal(id){
@@ -580,47 +592,60 @@ function doExport(){
 }
 
 // ---- CRUD ----
-function savePart(){
+async function savePart(){
   const name=document.getElementById('f-part-name').value.trim();
   if(!name)return alert('Part name is required');
   const qty=parseInt(document.getElementById('f-part-qty').value)||0;
   const existing=state.parts.find(p=>p.name.toLowerCase()===name.toLowerCase());
   if(existing){
     if(qty>0){
-      existing.qty+=qty;
-      state.transactions.push({id:state.nextTxnId++,type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added to existing part',issuedTo:'',purpose:''});
-      alert('"'+existing.name+'" already exists. Added '+qty+' '+existing.unit+'. New total: '+existing.qty+' '+existing.unit+'.');
-    } else {
+      try{
+        await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added to existing part'});
+        alert('"'+existing.name+'" already exists. Added '+qty+' '+existing.unit+'.');
+      }catch(e){return alert(e.message);}
+    }else{
       alert('"'+existing.name+'" already exists in inventory.');
     }
     closeModal('addPart');
     ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
-    renderAll();return;
+    await loadAll();return;
   }
-  const newPart={id:state.nextPartId++,name,category:document.getElementById('f-part-cat').value,unit:document.getElementById('f-part-unit').value,qty,minQty:parseInt(document.getElementById('f-part-min').value)||0,desc:document.getElementById('f-part-desc').value.trim()};
-  state.parts.push(newPart);
-  if(qty>0)state.transactions.push({id:state.nextTxnId++,type:'in',partId:newPart.id,qty,date:today(),ref:'Opening Stock',notes:'Opening balance',issuedTo:'',purpose:''});
-  closeModal('addPart');
-  ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
-  renderAll();
+  try{
+    const newPart=await apiFetch('/api/parts','POST',{
+      name,
+      category:document.getElementById('f-part-cat').value,
+      unit:document.getElementById('f-part-unit').value,
+      minQty:parseInt(document.getElementById('f-part-min').value)||0,
+      desc:document.getElementById('f-part-desc').value.trim()
+    });
+    if(qty>0){
+      await apiFetch('/api/transactions','POST',{type:'in',partId:newPart.id,qty,date:today(),ref:'Opening Stock',notes:'Opening balance'});
+    }
+    closeModal('addPart');
+    ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
-function saveStockIn(){
+async function saveStockIn(){
   const partId=parseInt(document.getElementById('f-in-part').value);
   const qty=parseInt(document.getElementById('f-in-qty').value);
   const date=document.getElementById('f-in-date').value;
   if(!qty||qty<1)return alert('Enter a valid quantity');
   if(!date)return alert('Date is required');
-  const part=state.parts.find(p=>p.id===partId);
-  if(!part)return;
-  part.qty+=qty;
-  state.transactions.push({id:state.nextTxnId++,type:'in',partId,qty,date,ref:document.getElementById('f-in-supplier').value.trim(),notes:document.getElementById('f-in-notes').value.trim(),issuedTo:'',purpose:''});
-  closeModal('addIn');
-  ['f-in-qty','f-in-supplier','f-in-notes'].forEach(id=>document.getElementById(id).value='');
-  renderAll();
+  try{
+    await apiFetch('/api/transactions','POST',{
+      type:'in',partId,qty,date,
+      ref:document.getElementById('f-in-supplier').value.trim(),
+      notes:document.getElementById('f-in-notes').value.trim()
+    });
+    closeModal('addIn');
+    ['f-in-qty','f-in-supplier','f-in-notes'].forEach(id=>document.getElementById(id).value='');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
-function saveStockOut(){
+async function saveStockOut(){
   const partId=parseInt(document.getElementById('f-out-part').value);
   const qty=parseInt(document.getElementById('f-out-qty').value);
   const date=document.getElementById('f-out-date').value;
@@ -628,24 +653,27 @@ function saveStockOut(){
   if(!qty||qty<1)return alert('Enter a valid quantity');
   if(!date)return alert('Date is required');
   if(!issuedTo)return alert('Issued To is required');
-  const part=state.parts.find(p=>p.id===partId);
-  if(!part)return;
-  if(qty>part.qty)return alert('Not enough stock! Available: '+part.qty+' '+part.unit);
-  part.qty-=qty;
-  state.transactions.push({id:state.nextTxnId++,type:'out',partId,qty,date,ref:'',notes:'',issuedTo,purpose:document.getElementById('f-out-purpose').value.trim()});
-  closeModal('addOut');
-  ['f-out-qty','f-out-issued','f-out-purpose'].forEach(id=>document.getElementById(id).value='');
-  renderAll();
+  try{
+    await apiFetch('/api/transactions','POST',{
+      type:'out',partId,qty,date,issuedTo,
+      purpose:document.getElementById('f-out-purpose').value.trim()
+    });
+    closeModal('addOut');
+    ['f-out-qty','f-out-issued','f-out-purpose'].forEach(id=>document.getElementById(id).value='');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
-function saveCat(){
+async function saveCat(){
   const name=document.getElementById('f-cat-name').value.trim();
   if(!name)return alert('Category name required');
   if(state.categories.includes(name))return alert('Already exists');
-  state.categories.push(name);
-  closeModal('addCat');
-  document.getElementById('f-cat-name').value='';
-  renderAll();
+  try{
+    await apiFetch('/api/categories','POST',{name});
+    closeModal('addCat');
+    document.getElementById('f-cat-name').value='';
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
 function openEditPart(id){
@@ -661,50 +689,48 @@ function openEditPart(id){
   openModal('editPart');
 }
 
-function updatePart(){
+async function updatePart(){
   const id=parseInt(document.getElementById('f-edit-id').value);
-  const p=state.parts.find(x=>x.id===id);
-  if(!p)return;
   const name=document.getElementById('f-edit-name').value.trim();
   if(!name)return alert('Part name required');
-  p.name=name;
-  p.category=document.getElementById('f-edit-cat').value;
-  p.unit=document.getElementById('f-edit-unit').value;
-  p.minQty=parseInt(document.getElementById('f-edit-min').value)||0;
-  p.desc=document.getElementById('f-edit-desc').value.trim();
-  closeModal('editPart');
-  renderAll();
+  try{
+    await apiFetch('/api/parts','PUT',{
+      id,name,
+      category:document.getElementById('f-edit-cat').value,
+      unit:document.getElementById('f-edit-unit').value,
+      minQty:parseInt(document.getElementById('f-edit-min').value)||0,
+      desc:document.getElementById('f-edit-desc').value.trim()
+    });
+    closeModal('editPart');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
-function deletePart(id){
+async function deletePart(id){
   if(!confirm('Delete this part and all its transaction records?'))return;
-  state.parts=state.parts.filter(p=>p.id!==id);
-  state.transactions=state.transactions.filter(t=>t.partId!==id);
-  renderAll();
+  try{
+    await apiFetch('/api/parts?id='+id,'DELETE');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
-function deleteTxn(id){
+async function deleteTxn(id){
   const t=state.transactions.find(x=>x.id===id);
   if(!t)return;
-  const part=state.parts.find(p=>p.id===t.partId);
   if(!confirm('Delete this '+(t.type==='in'?'stock in':'stock out')+' record?\nThis will reverse the qty change.'))return;
-  if(part){
-    if(t.type==='in'){
-      if(part.qty<t.qty)return alert('Cannot delete: current stock ('+part.qty+') is less than this record qty ('+t.qty+'). Adjust stock first.');
-      part.qty-=t.qty;
-    } else {
-      part.qty+=t.qty;
-    }
-  }
-  state.transactions=state.transactions.filter(x=>x.id!==id);
-  renderAll();
+  try{
+    await apiFetch('/api/transactions?id='+id,'DELETE');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
-function deleteCat(name){
+async function deleteCat(name){
   if(state.parts.some(p=>p.category===name))return alert('Cannot delete: parts are using this category. Reassign them first.');
   if(!confirm('Delete category "'+name+'"?'))return;
-  state.categories=state.categories.filter(c=>c!==name);
-  renderAll();
+  try{
+    await apiFetch('/api/categories?name='+encodeURIComponent(name),'DELETE');
+    await loadAll();
+  }catch(e){alert(e.message);}
 }
 
 // ---- RENDER ----
@@ -822,7 +848,7 @@ function renderCategories(){
 }
 
 function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();}
-renderAll();
+loadAll();
 </script>
 </body>
 </html>
