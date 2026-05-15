@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parts Store — Stock Management</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a1a;background:#f5f5f3;height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+.sidebar{width:210px;min-width:210px;background:#fff;border-right:1px solid #e8e8e6;display:flex;flex-direction:column;padding:1rem 0}
+.logo{padding:0 1rem 1rem;border-bottom:1px solid #e8e8e6;margin-bottom:0.5rem}
+.logo-title{font-size:15px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px}
+.logo-sub{font-size:11px;color:#888;margin-top:2px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 1rem;font-size:13px;cursor:pointer;color:#555;transition:background 0.15s;border-left:3px solid transparent}
+.nav-item:hover{background:#f5f5f3;color:#1a1a1a}
+.nav-item.active{background:#f0f4fb;color:#185FA5;font-weight:600;border-left:3px solid #185FA5}
+.nav-item i{font-size:17px}
+.main{flex:1;overflow-y:auto;padding:1.75rem;background:#f5f5f3}
+.page{display:none}.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px}
+.page-title{font-size:20px;font-weight:600}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 14px;border-radius:8px;border:1px solid #d0d0cc;background:#fff;color:#1a1a1a;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;font-family:inherit}
+.btn:hover{background:#f5f5f3}
+.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-primary:hover{background:#0C447C}
+.btn-success{background:#2d6a10;color:#fff;border-color:#2d6a10}
+.btn-success:hover{background:#1e4d09}
+.btn-excel{background:#1D6F42;color:#fff;border-color:#1D6F42}
+.btn-excel:hover{background:#155232}
+.btn-print{background:#444;color:#fff;border-color:#444}
+.btn-print:hover{background:#222}
+.btn-danger-soft{background:#fff;color:#A32D2D;border-color:#e8e8e6}
+.btn-danger-soft:hover{background:#fff5f5}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-icon{padding:5px 8px;font-size:12px;min-width:28px;justify-content:center}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:1.5rem}
+.stat-card{background:#fff;border-radius:10px;padding:1.1rem;border:1px solid #e8e8e6}
+.stat-label{font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+.stat-value{font-size:26px;font-weight:700}
+.stat-sub{font-size:11px;color:#aaa;margin-top:2px}
+.c-green{color:#2d6a10}.c-amber{color:#854F0B}.c-red{color:#A32D2D}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:600;color:#888;padding:8px 12px;border-bottom:1px solid #e8e8e6;text-transform:uppercase;letter-spacing:0.5px;background:#fafafa}
+td{padding:10px 12px;border-bottom:1px solid #f0f0ee;color:#1a1a1a;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-in{background:#eaf3de;color:#2d6a10}
+.badge-out{background:#faece7;color:#993C1D}
+.badge-low{background:#faeeda;color:#854F0B}
+.badge-ok{background:#eaf3de;color:#2d6a10}
+.badge-critical{background:#fcebeb;color:#A32D2D}
+.card{background:#fff;border:1px solid #e8e8e6;border-radius:10px;padding:1.25rem;margin-bottom:1rem}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;border:1px solid #e8e8e6;padding:1.75rem;width:460px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.14)}
+.modal-wide{width:700px}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px}
+.form-group{margin-bottom:1rem}
+.form-label{font-size:12px;color:#555;margin-bottom:5px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
+input,select,textarea{width:100%;padding:9px 12px;border-radius:8px;border:1px solid #d8d8d4;background:#fff;color:#1a1a1a;font-size:13px;font-family:inherit;transition:border 0.15s}
+input[type=checkbox]{width:16px;height:16px;padding:0;cursor:pointer;accent-color:#185FA5}
+input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px rgba(24,95,165,0.1)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #f0f0ee}
+.search-bar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.search-bar input[type=text]{max-width:240px}
+.empty{text-align:center;padding:3rem;color:#aaa;font-size:13px}
+.empty i{display:block;font-size:32px;margin-bottom:8px;opacity:0.4}
+.divider{height:1px;background:#f0f0ee;margin:0.5rem 1rem}
+.section-title{font-size:13px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:6px;color:#555}
+.qty-positive{color:#2d6a10;font-weight:600}
+.qty-negative{color:#993C1D;font-weight:600}
+.sel-controls{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
+.sel-table{width:100%;border-collapse:collapse;font-size:12px}
+.sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
+.sel-table td{padding:7px 10px;border-bottom:1px solid #f5f5f3;vertical-align:middle}
+.sel-table tr:hover td{background:#fafaf8}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d0d0cc;border-radius:3px}
+@media print{
+  body{background:#fff;overflow:auto;height:auto}
+  .app{display:block;height:auto}
+  .sidebar,.no-print{display:none!important}
+  .main{overflow:visible;padding:0;background:#fff}
+  .page{display:none!important}
+  .card{border:none;border-radius:0;padding:0}
+  table{font-size:11px}
+  th,td{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-title"><i class="ti ti-tools"></i> Parts Store</div>
+      <div class="logo-sub">Stock Management System</div>
+    </div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+    <div class="nav-item" onclick="showPage('inventory',this)"><i class="ti ti-package"></i> Inventory</div>
+    <div class="nav-item" onclick="showPage('stockin',this)"><i class="ti ti-arrow-bar-to-down"></i> Stock In</div>
+    <div class="nav-item" onclick="showPage('stockout',this)"><i class="ti ti-arrow-bar-up"></i> Stock Out</div>
+    <div class="nav-item" onclick="showPage('issuance',this)"><i class="ti ti-clipboard-list"></i> Issuance Log</div>
+    <div class="divider"></div>
+    <div class="nav-item" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <span style="font-size:12px;color:#888" id="dash-date"></span>
+      </div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <div class="section-title"><i class="ti ti-alert-triangle" style="color:#BA7517"></i> Low Stock Alerts</div>
+        <div id="low-stock-list"></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><i class="ti ti-history"></i> Recent Transactions</div>
+        <div id="recent-txns"></div>
+      </div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div class="page" id="page-inventory">
+      <div class="page-header">
+        <div class="page-title">Inventory</div>
+        <div class="header-actions no-print">
+          <button class="btn btn-print" onclick="openPrintModal('inventory')"><i class="ti ti-printer"></i> Print</button>
+          <button class="btn btn-excel" onclick="openExportModal('inventory')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+          <button class="btn btn-primary" onclick="openModal('addPart')"><i class="ti ti-plus"></i> Add Part</button>
+        </div>
+      </div>
+      <div class="search-bar no-print">
+        <input type="text" placeholder="Search parts..." id="inv-search" oninput="renderInventory()">
+        <select id="inv-cat-filter" onchange="renderInventory()" style="width:170px"></select>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>#</th><th>Part Name</th><th>Category</th><th>Unit</th><th>Qty on Hand</th><th>Min Qty</th><th>Status</th><th class="no-print" style="width:110px">Actions</th></tr></thead>
+          <tbody id="inv-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STOCK IN -->
+    <div class="page" id="page-stockin">
+      <div class="page-header">
+        <div class="page-title">Stock In</div>
+        <div class="header-actions no-print">
+          <button class="btn btn-print" onclick="openPrintModal('stockin')"><i class="ti ti-printer"></i> Print</button>
+          <button class="btn btn-excel" onclick="openExportModal('stockin')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+          <button class="btn btn-success" onclick="openModal('addIn')"><i class="ti ti-plus"></i> Record Stock In</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Added</th><th>Supplier / Ref</th><th>Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <tbody id="stockin-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STOCK OUT -->
+    <div class="page" id="page-stockout">
+      <div class="page-header">
+        <div class="page-title">Stock Out</div>
+        <div class="header-actions no-print">
+          <button class="btn btn-print" onclick="openPrintModal('stockout')"><i class="ti ti-printer"></i> Print</button>
+          <button class="btn btn-excel" onclick="openExportModal('stockout')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+          <button class="btn btn-danger-soft" onclick="openModal('addOut')"><i class="ti ti-plus"></i> Record Stock Out</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Issued</th><th>Issued To</th><th>Purpose</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <tbody id="stockout-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ISSUANCE LOG -->
+    <div class="page" id="page-issuance">
+      <div class="page-header">
+        <div class="page-title">Issuance Log</div>
+        <div class="header-actions no-print">
+          <button class="btn btn-print" onclick="openPrintModal('issuance')"><i class="ti ti-printer"></i> Print</button>
+          <button class="btn btn-excel" onclick="openExportModal('issuance')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+        </div>
+      </div>
+      <div class="search-bar no-print">
+        <input type="text" placeholder="Search by part, issued to..." id="iss-search" oninput="renderIssuance()">
+        <input type="date" id="iss-date-filter" onchange="renderIssuance()" style="width:160px">
+        <button class="btn btn-sm" onclick="document.getElementById('iss-date-filter').value='';renderIssuance()">Clear</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Issued To / Supplier</th><th>Purpose / Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <tbody id="issuance-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div class="page" id="page-categories">
+      <div class="page-header">
+        <div class="page-title">Categories</div>
+        <button class="btn btn-primary" onclick="openModal('addCat')"><i class="ti ti-plus"></i> Add Category</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>Category Name</th><th>Parts Count</th><th style="width:80px">Actions</th></tr></thead>
+          <tbody id="cat-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== DATA MODALS ===== -->
+<div class="modal-overlay" id="modal-addPart">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-package"></i> Add New Part</div>
+    <div class="form-group"><label class="form-label">Part Name *</label><input id="f-part-name" placeholder="e.g. Bearing 6204"></div>
+    <div class="form-group"><label class="form-label">Category *</label><select id="f-part-cat"></select></div>
+    <div class="form-group"><label class="form-label">Unit of Measure</label>
+      <select id="f-part-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
+    </div>
+    <div class="two-col">
+      <div class="form-group"><label class="form-label">Opening Qty</label><input id="f-part-qty" type="number" min="0" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Min Qty (alert)</label><input id="f-part-min" type="number" min="0" placeholder="5"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Description / Notes</label><input id="f-part-desc" placeholder="Optional description"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addPart')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePart()">Save Part</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addIn">
+  <div class="modal">
+    <div class="modal-title" style="color:#2d6a10"><i class="ti ti-arrow-bar-to-down"></i> Record Stock In</div>
+    <div class="form-group"><label class="form-label">Part *</label><select id="f-in-part"></select></div>
+    <div class="two-col">
+      <div class="form-group"><label class="form-label">Quantity *</label><input id="f-in-qty" type="number" min="1" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Date *</label><input id="f-in-date" type="date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Supplier / Reference No.</label><input id="f-in-supplier" placeholder="Supplier name or PO number"></div>
+    <div class="form-group"><label class="form-label">Notes</label><input id="f-in-notes" placeholder="Optional notes"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addIn')">Cancel</button>
+      <button class="btn btn-success" onclick="saveStockIn()">Confirm Stock In</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addOut">
+  <div class="modal">
+    <div class="modal-title" style="color:#993C1D"><i class="ti ti-arrow-bar-up"></i> Record Stock Out / Issue</div>
+    <div class="form-group"><label class="form-label">Part *</label><select id="f-out-part"></select></div>
+    <div class="two-col">
+      <div class="form-group"><label class="form-group"><label class="form-label">Quantity *</label><input id="f-out-qty" type="number" min="1" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Date *</label><input id="f-out-date" type="date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Issued To *</label><input id="f-out-issued" placeholder="Person / Department / Machine"></div>
+    <div class="form-group"><label class="form-label">Purpose</label><input id="f-out-purpose" placeholder="Repair, maintenance, production..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addOut')">Cancel</button>
+      <button class="btn" style="background:#A32D2D;color:#fff;border-color:#A32D2D" onclick="saveStockOut()">Confirm Issue</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-addCat">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-tag"></i> Add Category</div>
+    <div class="form-group"><label class="form-label">Category Name *</label><input id="f-cat-name" placeholder="e.g. Bearings, Inks, Seals..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addCat')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCat()">Save Category</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-editPart">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-edit"></i> Edit Part</div>
+    <input type="hidden" id="f-edit-id">
+    <div class="form-group"><label class="form-label">Part Name *</label><input id="f-edit-name"></div>
+    <div class="form-group"><label class="form-label">Category *</label><select id="f-edit-cat"></select></div>
+    <div class="form-group"><label class="form-label">Unit of Measure</label>
+      <select id="f-edit-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">Min Qty (alert threshold)</label><input id="f-edit-min" type="number" min="0"></div>
+    <div class="form-group"><label class="form-label">Description / Notes</label><input id="f-edit-desc"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('editPart')">Cancel</button>
+      <button class="btn btn-primary" onclick="updatePart()">Update Part</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT SELECTION MODAL -->
+<div class="modal-overlay" id="modal-print">
+  <div class="modal modal-wide">
+    <div class="modal-title"><i class="ti ti-printer"></i> Select Entries to Print</div>
+    <div class="sel-controls">
+      <button class="btn btn-sm" onclick="selAll('print',true)">Select All</button>
+      <button class="btn btn-sm" onclick="selAll('print',false)">Deselect All</button>
+      <span class="sel-count" id="sel-print-count">0 selected</span>
+    </div>
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e8e8e6;border-radius:8px">
+      <table class="sel-table">
+        <thead id="sel-print-thead"></thead>
+        <tbody id="sel-print-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('print')">Cancel</button>
+      <button class="btn btn-print" onclick="doPrint()"><i class="ti ti-printer"></i> Print Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT SELECTION MODAL -->
+<div class="modal-overlay" id="modal-export">
+  <div class="modal modal-wide">
+    <div class="modal-title"><i class="ti ti-file-spreadsheet" style="color:#1D6F42"></i> Select Entries to Export to Excel</div>
+    <div class="sel-controls">
+      <button class="btn btn-sm" onclick="selAll('export',true)">Select All</button>
+      <button class="btn btn-sm" onclick="selAll('export',false)">Deselect All</button>
+      <span class="sel-count" id="sel-export-count">0 selected</span>
+    </div>
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e8e8e6;border-radius:8px">
+      <table class="sel-table">
+        <thead id="sel-export-thead"></thead>
+        <tbody id="sel-export-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('export')">Cancel</button>
+      <button class="btn btn-excel" onclick="doExport()"><i class="ti ti-file-spreadsheet"></i> Export to Excel</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let state = {
+  categories: ['Bearings','Inks','Belts','Seals','Filters','Fasteners','Lubricants','Electrical','Hydraulics','Other'],
+  parts: [
+    {id:1,name:'Bearing 6204',category:'Bearings',unit:'pcs',qty:24,minQty:5,desc:'Deep groove ball bearing'},
+    {id:2,name:'Black Ink 1L',category:'Inks',unit:'liters',qty:3,minQty:10,desc:'Printing ink'},
+    {id:3,name:'V-Belt A45',category:'Belts',unit:'pcs',qty:12,minQty:4,desc:'V-belt for motor drives'},
+    {id:4,name:'Hydraulic Oil 46',category:'Hydraulics',unit:'liters',qty:40,minQty:20,desc:'ISO VG 46'},
+  ],
+  transactions: [
+    {id:1,type:'in',partId:1,qty:10,date:'2026-05-01',ref:'PO-001',notes:'Monthly restock',issuedTo:'',purpose:''},
+    {id:2,type:'out',partId:2,qty:2,date:'2026-05-03',ref:'',notes:'',issuedTo:'Press Dept',purpose:'Printing run'},
+    {id:3,type:'out',partId:1,qty:4,date:'2026-05-10',ref:'',notes:'',issuedTo:'Maintenance',purpose:'Machine A repair'},
+    {id:4,type:'in',partId:3,qty:6,date:'2026-05-11',ref:'PO-002',notes:'',issuedTo:'',purpose:''},
+  ],
+  nextPartId:5, nextTxnId:5
+};
+
+let _activeSection = '';
+
+function today(){return new Date().toISOString().split('T')[0]}
+function fmtDate(d){if(!d)return'';return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+function nowStr(){return new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  renderAll();
+}
+
+function openModal(id){
+  if(id==='addIn'){document.getElementById('f-in-date').value=today();populatePartSelect('f-in-part')}
+  if(id==='addOut'){document.getElementById('f-out-date').value=today();populatePartSelect('f-out-part')}
+  if(id==='addPart'){populateCatSelect('f-part-cat')}
+  document.getElementById('modal-'+id).classList.add('open');
+}
+function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')})});
+
+function populateCatSelect(id){document.getElementById(id).innerHTML=state.categories.map(c=>`<option>${c}</option>`).join('')}
+function populatePartSelect(id){document.getElementById(id).innerHTML=state.parts.map(p=>`<option value="${p.id}">${p.name} (${p.qty} ${p.unit})</option>`).join('')}
+
+function getPartName(id){const p=state.parts.find(x=>x.id===id);return p?p.name:'Unknown'}
+function getPartCat(id){const p=state.parts.find(x=>x.id===id);return p?p.category:''}
+function getPartUnit(id){const p=state.parts.find(x=>x.id===id);return p?p.unit:''}
+function stockStatus(p){
+  if(p.qty===0)return{label:'Out of stock',cls:'badge-critical'};
+  if(p.qty<=p.minQty)return{label:'Low stock',cls:'badge-low'};
+  return{label:'In stock',cls:'badge-ok'};
+}
+
+// ---- Section data helpers ----
+function getSectionData(sec){
+  if(sec==='inventory'){
+    const s=(document.getElementById('inv-search')||{value:''}).value.toLowerCase();
+    const c=(document.getElementById('inv-cat-filter')||{value:''}).value;
+    return state.parts.filter(p=>(!s||p.name.toLowerCase().includes(s)||p.category.toLowerCase().includes(s))&&(!c||p.category===c));
+  }
+  if(sec==='stockin') return [...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id);
+  if(sec==='stockout') return [...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id);
+  if(sec==='issuance'){
+    const s=(document.getElementById('iss-search')||{value:''}).value.toLowerCase();
+    const d=(document.getElementById('iss-date-filter')||{value:''}).value;
+    return [...state.transactions].sort((a,b)=>b.id-a.id).filter(t=>{
+      const ms=!s||getPartName(t.partId).toLowerCase().includes(s)||(t.issuedTo+t.ref+t.purpose).toLowerCase().includes(s);
+      return ms&&(!d||t.date===d);
+    });
+  }
+  return [];
+}
+
+function getHeaders(sec){
+  if(sec==='inventory') return['#','Part Name','Category','Unit','Qty on Hand','Min Qty','Status'];
+  if(sec==='stockin')   return['#','Date','Part Name','Category','Qty Added','Supplier / Ref','Notes'];
+  if(sec==='stockout')  return['#','Date','Part Name','Category','Qty Issued','Issued To','Purpose'];
+  if(sec==='issuance')  return['#','Date','Part Name','Type','Qty','Issued To / Supplier','Purpose / Notes'];
+  return[];
+}
+
+function rowCells(sec,item,i){
+  if(sec==='inventory'){
+    const s=stockStatus(item);
+    return[i+1,item.name,item.category,item.unit,item.qty,item.minQty,s.label];
+  }
+  if(sec==='stockin')  return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'+'+item.qty+' '+getPartUnit(item.partId),item.ref||'—',item.notes||'—'];
+  if(sec==='stockout') return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'-'+item.qty+' '+getPartUnit(item.partId),item.issuedTo||'—',item.purpose||'—'];
+  if(sec==='issuance') return[i+1,fmtDate(item.date),getPartName(item.partId),item.type==='in'?'Stock In':'Issue',(item.type==='in'?'+':'-')+item.qty+' '+getPartUnit(item.partId),item.type==='in'?(item.ref||'—'):(item.issuedTo||'—'),item.type==='in'?(item.notes||'—'):(item.purpose||'—')];
+  return[];
+}
+
+// ---- PRINT ----
+function openPrintModal(sec){
+  _activeSection=sec;
+  const data=getSectionData(sec);
+  const headers=getHeaders(sec);
+  const thead=document.getElementById('sel-print-thead');
+  const tbody=document.getElementById('sel-print-tbody');
+  thead.innerHTML='<tr><th style="width:32px"><input type="checkbox" id="chk-all-print" checked onchange="selAll(\'print\',this.checked)"></th>'+headers.slice(1).map(h=>`<th>${h}</th>`).join('')+'</tr>';
+  tbody.innerHTML=data.length?data.map((item,i)=>{
+    const cells=rowCells(sec,item,i);
+    return`<tr><td><input type="checkbox" class="sel-chk-print" data-i="${i}" checked onchange="updCount('print')"></td>${cells.slice(1).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:#aaa;padding:1.5rem">No data to show</td></tr>';
+  updCount('print');
+  openModal('print');
+}
+
+function openExportModal(sec){
+  _activeSection=sec;
+  const data=getSectionData(sec);
+  const headers=getHeaders(sec);
+  const thead=document.getElementById('sel-export-thead');
+  const tbody=document.getElementById('sel-export-tbody');
+  thead.innerHTML='<tr><th style="width:32px"><input type="checkbox" id="chk-all-export" checked onchange="selAll(\'export\',this.checked)"></th>'+headers.slice(1).map(h=>`<th>${h}</th>`).join('')+'</tr>';
+  tbody.innerHTML=data.length?data.map((item,i)=>{
+    const cells=rowCells(sec,item,i);
+    return`<tr><td><input type="checkbox" class="sel-chk-export" data-i="${i}" checked onchange="updCount('export')"></td>${cells.slice(1).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:#aaa;padding:1.5rem">No data to show</td></tr>';
+  updCount('export');
+  openModal('export');
+}
+
+function selAll(type,v){
+  document.querySelectorAll('.sel-chk-'+type).forEach(c=>c.checked=v);
+  const ca=document.getElementById('chk-all-'+type);
+  if(ca)ca.checked=v;
+  updCount(type);
+}
+
+function updCount(type){
+  const all=document.querySelectorAll('.sel-chk-'+type).length;
+  const sel=document.querySelectorAll('.sel-chk-'+type+':checked').length;
+  const el=document.getElementById('sel-'+type+'-count');
+  if(el)el.textContent=sel+' of '+all+' selected';
+}
+
+function doPrint(){
+  const idxs=[];
+  document.querySelectorAll('.sel-chk-print:checked').forEach(c=>idxs.push(parseInt(c.dataset.i)));
+  if(!idxs.length){alert('Please select at least one entry to print.');return;}
+  const sec=_activeSection;
+  const data=getSectionData(sec);
+  const headers=getHeaders(sec);
+  const selected=idxs.map(i=>data[i]);
+  const titleMap={inventory:'Inventory Report',stockin:'Stock In Report',stockout:'Stock Out Report',issuance:'Issuance Log'};
+  const rows=selected.map((item,i)=>{
+    const cells=rowCells(sec,item,i);
+    return'<tr>'+cells.map((c,ci)=>`<td style="${ci===0?'color:#aaa;width:32px;':''}">${c}</td>`).join('')+'</tr>';
+  }).join('');
+  const win=window.open('','_blank','width=900,height=700');
+  if(!win){alert('Please allow popups for printing.');return;}
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${titleMap[sec]||sec}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;padding:28px;color:#1a1a1a;background:#fff}
+    .header{border-bottom:3px solid #185FA5;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+    .header h1{font-size:20px;color:#185FA5;font-weight:700}
+    .header .meta{font-size:12px;color:#888;text-align:right;line-height:1.6}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+    thead tr{background:#185FA5}
+    thead th{color:#fff;padding:9px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px}
+    tbody td{padding:8px 10px;border-bottom:1px solid #eee;vertical-align:middle}
+    tbody tr:nth-child(even) td{background:#f8f8f6}
+    .footer{margin-top:18px;font-size:11px;color:#bbb;text-align:right;padding-top:10px;border-top:1px solid #eee}
+    @media print{@page{margin:1.5cm}body{padding:0}}
+  </style></head><body>
+  <div class="header">
+    <div><h1>Parts Store</h1><div style="font-size:14px;color:#555;margin-top:3px">${titleMap[sec]||sec}</div></div>
+    <div class="meta">Printed: ${nowStr()}<br>Total entries: ${selected.length}</div>
+  </div>
+  <table>
+    <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">Parts Store — Stock Management System</div>
+  <script>window.onload=function(){setTimeout(()=>window.print(),300)}<\/script>
+  </body></html>`);
+  win.document.close();
+  closeModal('print');
+}
+
+function doExport(){
+  const idxs=[];
+  document.querySelectorAll('.sel-chk-export:checked').forEach(c=>idxs.push(parseInt(c.dataset.i)));
+  if(!idxs.length){alert('Please select at least one entry to export.');return;}
+  const sec=_activeSection;
+  const data=getSectionData(sec);
+  const headers=getHeaders(sec);
+  const selected=idxs.map(i=>data[i]);
+  const titleMap={inventory:'Inventory',stockin:'Stock In',stockout:'Stock Out',issuance:'Issuance Log'};
+  const sheetName=titleMap[sec]||sec;
+
+  const wb=XLSX.utils.book_new();
+  // Build rows: title block + headers + data
+  const dataRows=selected.map((item,i)=>rowCells(sec,item,i));
+  const sheetData=[
+    ['Parts Store — '+sheetName+' Report'],
+    ['Exported on: '+nowStr(),'','','Total entries: '+selected.length],
+    [],
+    headers,
+    ...dataRows
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(sheetData);
+
+  // Auto col widths
+  ws['!cols']=headers.map((_,ci)=>{
+    const maxW=Math.max(headers[ci].length,...dataRows.map(r=>String(r[ci]===undefined?'':r[ci]).length));
+    return{wch:Math.min(Math.max(maxW+3,12),42)};
+  });
+
+  // Merge title row across all columns
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:headers.length-1}},
+    {s:{r:1,c:0},e:{r:1,c:2}}
+  ];
+
+  XLSX.utils.book_append_sheet(wb,ws,sheetName.substring(0,31));
+  XLSX.writeFile(wb,'PartsStore_'+sheetName.replace(/ /g,'_')+'_'+today()+'.xlsx');
+  closeModal('export');
+}
+
+// ---- CRUD ----
+function savePart(){
+  const name=document.getElementById('f-part-name').value.trim();
+  if(!name)return alert('Part name is required');
+  const qty=parseInt(document.getElementById('f-part-qty').value)||0;
+  const existing=state.parts.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(existing){
+    if(qty>0){
+      existing.qty+=qty;
+      state.transactions.push({id:state.nextTxnId++,type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added to existing part',issuedTo:'',purpose:''});
+      alert('"'+existing.name+'" already exists. Added '+qty+' '+existing.unit+'. New total: '+existing.qty+' '+existing.unit+'.');
+    } else {
+      alert('"'+existing.name+'" already exists in inventory.');
+    }
+    closeModal('addPart');
+    ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
+    renderAll();return;
+  }
+  const newPart={id:state.nextPartId++,name,category:document.getElementById('f-part-cat').value,unit:document.getElementById('f-part-unit').value,qty,minQty:parseInt(document.getElementById('f-part-min').value)||0,desc:document.getElementById('f-part-desc').value.trim()};
+  state.parts.push(newPart);
+  if(qty>0)state.transactions.push({id:state.nextTxnId++,type:'in',partId:newPart.id,qty,date:today(),ref:'Opening Stock',notes:'Opening balance',issuedTo:'',purpose:''});
+  closeModal('addPart');
+  ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
+  renderAll();
+}
+
+function saveStockIn(){
+  const partId=parseInt(document.getElementById('f-in-part').value);
+  const qty=parseInt(document.getElementById('f-in-qty').value);
+  const date=document.getElementById('f-in-date').value;
+  if(!qty||qty<1)return alert('Enter a valid quantity');
+  if(!date)return alert('Date is required');
+  const part=state.parts.find(p=>p.id===partId);
+  if(!part)return;
+  part.qty+=qty;
+  state.transactions.push({id:state.nextTxnId++,type:'in',partId,qty,date,ref:document.getElementById('f-in-supplier').value.trim(),notes:document.getElementById('f-in-notes').value.trim(),issuedTo:'',purpose:''});
+  closeModal('addIn');
+  ['f-in-qty','f-in-supplier','f-in-notes'].forEach(id=>document.getElementById(id).value='');
+  renderAll();
+}
+
+function saveStockOut(){
+  const partId=parseInt(document.getElementById('f-out-part').value);
+  const qty=parseInt(document.getElementById('f-out-qty').value);
+  const date=document.getElementById('f-out-date').value;
+  const issuedTo=document.getElementById('f-out-issued').value.trim();
+  if(!qty||qty<1)return alert('Enter a valid quantity');
+  if(!date)return alert('Date is required');
+  if(!issuedTo)return alert('Issued To is required');
+  const part=state.parts.find(p=>p.id===partId);
+  if(!part)return;
+  if(qty>part.qty)return alert('Not enough stock! Available: '+part.qty+' '+part.unit);
+  part.qty-=qty;
+  state.transactions.push({id:state.nextTxnId++,type:'out',partId,qty,date,ref:'',notes:'',issuedTo,purpose:document.getElementById('f-out-purpose').value.trim()});
+  closeModal('addOut');
+  ['f-out-qty','f-out-issued','f-out-purpose'].forEach(id=>document.getElementById(id).value='');
+  renderAll();
+}
+
+function saveCat(){
+  const name=document.getElementById('f-cat-name').value.trim();
+  if(!name)return alert('Category name required');
+  if(state.categories.includes(name))return alert('Already exists');
+  state.categories.push(name);
+  closeModal('addCat');
+  document.getElementById('f-cat-name').value='';
+  renderAll();
+}
+
+function openEditPart(id){
+  const p=state.parts.find(x=>x.id===id);
+  if(!p)return;
+  document.getElementById('f-edit-id').value=p.id;
+  document.getElementById('f-edit-name').value=p.name;
+  populateCatSelect('f-edit-cat');
+  document.getElementById('f-edit-cat').value=p.category;
+  document.getElementById('f-edit-unit').value=p.unit;
+  document.getElementById('f-edit-min').value=p.minQty;
+  document.getElementById('f-edit-desc').value=p.desc||'';
+  openModal('editPart');
+}
+
+function updatePart(){
+  const id=parseInt(document.getElementById('f-edit-id').value);
+  const p=state.parts.find(x=>x.id===id);
+  if(!p)return;
+  const name=document.getElementById('f-edit-name').value.trim();
+  if(!name)return alert('Part name required');
+  p.name=name;
+  p.category=document.getElementById('f-edit-cat').value;
+  p.unit=document.getElementById('f-edit-unit').value;
+  p.minQty=parseInt(document.getElementById('f-edit-min').value)||0;
+  p.desc=document.getElementById('f-edit-desc').value.trim();
+  closeModal('editPart');
+  renderAll();
+}
+
+function deletePart(id){
+  if(!confirm('Delete this part and all its transaction records?'))return;
+  state.parts=state.parts.filter(p=>p.id!==id);
+  state.transactions=state.transactions.filter(t=>t.partId!==id);
+  renderAll();
+}
+
+function deleteTxn(id){
+  const t=state.transactions.find(x=>x.id===id);
+  if(!t)return;
+  const part=state.parts.find(p=>p.id===t.partId);
+  if(!confirm('Delete this '+(t.type==='in'?'stock in':'stock out')+' record?\nThis will reverse the qty change.'))return;
+  if(part){
+    if(t.type==='in'){
+      if(part.qty<t.qty)return alert('Cannot delete: current stock ('+part.qty+') is less than this record qty ('+t.qty+'). Adjust stock first.');
+      part.qty-=t.qty;
+    } else {
+      part.qty+=t.qty;
+    }
+  }
+  state.transactions=state.transactions.filter(x=>x.id!==id);
+  renderAll();
+}
+
+function deleteCat(name){
+  if(state.parts.some(p=>p.category===name))return alert('Cannot delete: parts are using this category. Reassign them first.');
+  if(!confirm('Delete category "'+name+'"?'))return;
+  state.categories=state.categories.filter(c=>c!==name);
+  renderAll();
+}
+
+// ---- RENDER ----
+function renderDashboard(){
+  const d=document.getElementById('dash-date');
+  if(d)d.textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const sg=document.getElementById('stats-grid');
+  const totalParts=state.parts.length;
+  const totalQty=state.parts.reduce((a,p)=>a+p.qty,0);
+  const lowStock=state.parts.filter(p=>p.qty>0&&p.qty<=p.minQty).length;
+  const outOfStock=state.parts.filter(p=>p.qty===0).length;
+  if(sg)sg.innerHTML=`
+    <div class="stat-card"><div class="stat-label">Total Parts</div><div class="stat-value">${totalParts}</div><div class="stat-sub">unique items</div></div>
+    <div class="stat-card"><div class="stat-label">Qty on Hand</div><div class="stat-value c-green">${totalQty}</div><div class="stat-sub">all units</div></div>
+    <div class="stat-card"><div class="stat-label">Low Stock</div><div class="stat-value c-amber">${lowStock}</div><div class="stat-sub">need reorder</div></div>
+    <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value c-red">${outOfStock}</div><div class="stat-sub">critical</div></div>`;
+  const lsl=document.getElementById('low-stock-list');
+  const lp=state.parts.filter(p=>p.qty<=p.minQty);
+  if(lsl)lsl.innerHTML=lp.length?`<table><thead><tr><th>Part</th><th>Category</th><th>Current Qty</th><th>Min Qty</th><th>Status</th></tr></thead><tbody>${lp.map(p=>{const s=stockStatus(p);return`<tr><td style="font-weight:600">${p.name}</td><td>${p.category}</td><td>${p.qty} ${p.unit}</td><td>${p.minQty}</td><td><span class="badge ${s.cls}">${s.label}</span></td></tr>`}).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-circle-check" style="color:#2d6a10;font-size:28px"></i>All stock levels are healthy</div>';
+  const rt=document.getElementById('recent-txns');
+  const recent=[...state.transactions].sort((a,b)=>b.id-a.id).slice(0,6);
+  if(rt)rt.innerHTML=recent.length?`<table><thead><tr><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Details</th></tr></thead><tbody>${recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td style="font-weight:600">${getPartName(t.partId)}</td><td><span class="badge badge-${t.type}">${t.type==='in'?'Stock In':'Issue'}</span></td><td class="${t.type==='in'?'qty-positive':'qty-negative'}">${t.type==='in'?'+':'−'}${t.qty} ${getPartUnit(t.partId)}</td><td style="color:#888">${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-file-off"></i>No transactions yet</div>';
+}
+
+function renderInventory(){
+  const search=(document.getElementById('inv-search')||{value:''}).value.toLowerCase();
+  const catF=(document.getElementById('inv-cat-filter')||{value:''}).value;
+  const catSel=document.getElementById('inv-cat-filter');
+  if(catSel){catSel.innerHTML='<option value="">All Categories</option>'+state.categories.map(c=>`<option value="${c}">${c}</option>`).join('');catSel.value=catF;}
+  const parts=state.parts.filter(p=>(!search||p.name.toLowerCase().includes(search)||p.category.toLowerCase().includes(search))&&(!catF||p.category===catF));
+  const tb=document.getElementById('inv-table');
+  if(!tb)return;
+  if(!parts.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No parts found</div></td></tr>';return;}
+  tb.innerHTML=parts.map((p,i)=>{
+    const s=stockStatus(p);
+    return`<tr>
+      <td style="color:#bbb;font-size:12px">${i+1}</td>
+      <td style="font-weight:600">${p.name}${p.desc?`<br><span style="font-size:11px;color:#bbb;font-weight:400">${p.desc}</span>`:''}</td>
+      <td>${p.category}</td>
+      <td style="color:#888">${p.unit}</td>
+      <td style="font-weight:700;font-size:15px">${p.qty}</td>
+      <td style="color:#888">${p.minQty}</td>
+      <td><span class="badge ${s.cls}">${s.label}</span></td>
+      <td class="no-print">
+        <button class="btn btn-icon" title="Edit" onclick="openEditPart(${p.id})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-icon" title="Delete" style="color:#A32D2D;margin-left:4px" onclick="deletePart(${p.id})"><i class="ti ti-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStockIn(){
+  const txns=[...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id);
+  const tb=document.getElementById('stockin-table');
+  if(!tb)return;
+  if(!txns.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-file-off"></i>No stock in records</div></td></tr>';return;}
+  tb.innerHTML=txns.map((t,i)=>`<tr>
+    <td style="color:#bbb;font-size:12px">${i+1}</td>
+    <td>${fmtDate(t.date)}</td>
+    <td style="font-weight:600">${getPartName(t.partId)}</td>
+    <td>${getPartCat(t.partId)}</td>
+    <td class="qty-positive">+${t.qty} ${getPartUnit(t.partId)}</td>
+    <td>${t.ref||'—'}</td>
+    <td style="color:#888">${t.notes||'—'}</td>
+    <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
+  </tr>`).join('');
+}
+
+function renderStockOut(){
+  const txns=[...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id);
+  const tb=document.getElementById('stockout-table');
+  if(!tb)return;
+  if(!txns.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-file-off"></i>No stock out records</div></td></tr>';return;}
+  tb.innerHTML=txns.map((t,i)=>`<tr>
+    <td style="color:#bbb;font-size:12px">${i+1}</td>
+    <td>${fmtDate(t.date)}</td>
+    <td style="font-weight:600">${getPartName(t.partId)}</td>
+    <td>${getPartCat(t.partId)}</td>
+    <td class="qty-negative">−${t.qty} ${getPartUnit(t.partId)}</td>
+    <td>${t.issuedTo||'—'}</td>
+    <td style="color:#888">${t.purpose||'—'}</td>
+    <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
+  </tr>`).join('');
+}
+
+function renderIssuance(){
+  const search=(document.getElementById('iss-search')||{value:''}).value.toLowerCase();
+  const dateF=(document.getElementById('iss-date-filter')||{value:''}).value;
+  const txns=[...state.transactions].sort((a,b)=>b.id-a.id).filter(t=>{
+    const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||(t.issuedTo+t.ref+t.purpose).toLowerCase().includes(search);
+    return ms&&(!dateF||t.date===dateF);
+  });
+  const tb=document.getElementById('issuance-table');
+  if(!tb)return;
+  if(!txns.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';return;}
+  tb.innerHTML=txns.map((t,i)=>`<tr>
+    <td style="color:#bbb;font-size:12px">${i+1}</td>
+    <td>${fmtDate(t.date)}</td>
+    <td style="font-weight:600">${getPartName(t.partId)}</td>
+    <td><span class="badge badge-${t.type}">${t.type==='in'?'Stock In':'Issue'}</span></td>
+    <td class="${t.type==='in'?'qty-positive':'qty-negative'}">${t.type==='in'?'+':'−'}${t.qty} ${getPartUnit(t.partId)}</td>
+    <td>${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td>
+    <td style="color:#888">${t.type==='in'?(t.notes||'—'):(t.purpose||'—')}</td>
+    <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
+  </tr>`).join('');
+}
+
+function renderCategories(){
+  const tb=document.getElementById('cat-table');
+  if(!tb)return;
+  tb.innerHTML=state.categories.map(c=>{
+    const count=state.parts.filter(p=>p.category===c).length;
+    return`<tr><td style="font-weight:600">${c}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteCat('${c}')"><i class="ti ti-trash"></i></button></td></tr>`;
+  }).join('');
+}
+
+function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();}
+renderAll();
+</script>
+</body>
+</html>
