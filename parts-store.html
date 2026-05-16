@@ -115,6 +115,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="nav-item" onclick="showPage('issuance',this)"><i class="ti ti-clipboard-list"></i> Issuance Log</div>
     <div class="divider"></div>
     <div class="nav-item" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
+    <div class="nav-item" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
   </div>
 
   <div class="main">
@@ -232,6 +233,20 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <table>
           <thead><tr><th>Category Name</th><th>Parts Count</th><th style="width:80px">Actions</th></tr></thead>
           <tbody id="cat-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TRASH -->
+    <div class="page" id="page-trash">
+      <div class="page-header">
+        <div class="page-title">Trash</div>
+        <span style="font-size:12px;color:#888">Deleted parts are kept for 7 days, then permanently removed.</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>SKU / Part No.</th><th>Part Name</th><th>Category</th><th>Qty</th><th>Deleted</th><th>Auto-deletes</th><th style="width:180px">Actions</th></tr></thead>
+          <tbody id="trash-table"></tbody>
         </table>
       </div>
     </div>
@@ -375,7 +390,8 @@ let state = {
   module: localStorage.getItem('activeModule') || 'machinery',
   categories: [],
   parts: [],
-  transactions: []
+  transactions: [],
+  trash: []
 };
 
 const MODULE_LABEL = {machinery:'Machinery & Electrical', consumables:'Inks & Consumables'};
@@ -413,13 +429,15 @@ async function apiFetch(url, method='GET', body=null){
 async function loadAll(){
   try{
     const m='?module='+encodeURIComponent(state.module);
-    const [categories,parts,transactions]=await Promise.all([
+    const [categories,parts,transactions,trash]=await Promise.all([
       apiFetch('/api/categories'+m),
       apiFetch('/api/parts'+m),
-      apiFetch('/api/transactions')
+      apiFetch('/api/transactions'),
+      apiFetch('/api/trash'+m)
     ]);
     state.categories=categories;
     state.parts=parts;
+    state.trash=trash.items||[];
     // Only transactions for parts in this module
     const partIds=new Set(parts.map(p=>p.id));
     state.transactions=transactions.filter(t=>partIds.has(t.partId));
@@ -795,9 +813,24 @@ async function updatePart(){
 }
 
 async function deletePart(id){
-  if(!confirm('Delete this part and all its transaction records?'))return;
+  if(!confirm('Move this part to Trash?\n\nIt will be permanently deleted after 7 days. You can restore it from the Trash page before then.'))return;
   try{
     await apiFetch('/api/parts?id='+id,'DELETE');
+    await loadAll();
+  }catch(e){alert(e.message);}
+}
+
+async function restoreTrashPart(id){
+  try{
+    await apiFetch('/api/trash','POST',{id});
+    await loadAll();
+  }catch(e){alert(e.message);}
+}
+
+async function purgeTrashPart(id){
+  if(!confirm('Permanently delete this part and all its transaction records? This cannot be undone.'))return;
+  try{
+    await apiFetch('/api/trash?id='+id,'DELETE');
     await loadAll();
   }catch(e){alert(e.message);}
 }
@@ -936,7 +969,27 @@ function renderCategories(){
   }).join('');
 }
 
-function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();}
+function renderTrash(){
+  const tb=document.getElementById('trash-table');
+  if(!tb)return;
+  const items=state.trash||[];
+  if(!items.length){tb.innerHTML='<tr><td colspan="7"><div class="empty"><i class="ti ti-trash-off"></i>Trash is empty</div></td></tr>';return;}
+  const fmtTs=ts=>{if(!ts)return'';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
+  const daysLeft=ts=>{if(!ts)return'';const ms=new Date(ts)-new Date();const d=Math.ceil(ms/86400000);return d<=0?'soon':d+' day'+(d===1?'':'s')+' left'};
+  tb.innerHTML=items.map(p=>`<tr>
+    <td style="font-family:monospace;font-weight:600;color:#185FA5">${p.sku||'—'}</td>
+    <td style="font-weight:600">${p.name}</td>
+    <td>${p.category}</td>
+    <td>${p.qty} ${p.unit}</td>
+    <td style="color:#888;font-size:12px">${fmtTs(p.deletedAt)}</td>
+    <td style="color:#854F0B;font-size:12px">${fmtTs(p.purgeAt)}<br><span style="color:#aaa">${daysLeft(p.purgeAt)}</span></td>
+    <td>
+      <button class="btn btn-sm" onclick="restoreTrashPart(${p.id})"><i class="ti ti-arrow-back-up"></i> Restore</button>
+      <button class="btn btn-sm btn-danger-soft" onclick="purgeTrashPart(${p.id})" style="margin-left:4px"><i class="ti ti-x"></i> Delete forever</button>
+    </td>
+  </tr>`).join('');
+}
+function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderTrash();}
 // Apply persisted module to UI before first load
 (function initModule(){
   const m=state.module;

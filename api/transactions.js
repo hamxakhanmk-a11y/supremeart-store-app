@@ -6,14 +6,17 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
       const rows = await sql`
-        SELECT id, type,
-               part_id   AS "partId",
-               qty,
-               date::text AS date,
-               ref, notes,
-               issued_to AS "issuedTo",
-               purpose
-        FROM transactions ORDER BY id DESC
+        SELECT t.id, t.type,
+               t.part_id   AS "partId",
+               t.qty,
+               t.date::text AS date,
+               t.ref, t.notes,
+               t.issued_to AS "issuedTo",
+               t.purpose
+        FROM transactions t
+        JOIN parts p ON p.id = t.part_id
+        WHERE p.deleted_at IS NULL
+        ORDER BY t.id DESC
       `;
       return res.json(rows);
     }

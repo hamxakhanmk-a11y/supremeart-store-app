@@ -1,8 +1,9 @@
-const { sql, ensureTables, parseBody, normalizeModule } = require('../lib/db');
+const { sql, ensureTables, parseBody, normalizeModule, purgeOldTrash } = require('../lib/db');
 
 module.exports = async (req, res) => {
   try {
     await ensureTables();
+    await purgeOldTrash();
 
     if (req.method === 'GET') {
       const mod = normalizeModule(req.query.module);
@@ -11,7 +12,7 @@ module.exports = async (req, res) => {
                min_qty     AS "minQty",
                description AS "desc"
         FROM parts
-        WHERE module = ${mod}
+        WHERE module = ${mod} AND deleted_at IS NULL
         ORDER BY id
       `;
       return res.json(rows);
@@ -30,7 +31,7 @@ module.exports = async (req, res) => {
         SELECT id, sku, name, category, module, unit, qty,
                min_qty AS "minQty", description AS "desc"
         FROM parts
-        WHERE LOWER(sku) = LOWER(${skuTrim})
+        WHERE LOWER(sku) = LOWER(${skuTrim}) AND deleted_at IS NULL
         LIMIT 1
       `;
       if (dup.length > 0) {
@@ -76,7 +77,8 @@ module.exports = async (req, res) => {
     if (req.method === 'DELETE') {
       const id = req.query.id;
       if (!id) return res.status(400).json({ error: 'ID required' });
-      await sql`DELETE FROM parts WHERE id = ${id}`;
+      // Soft delete: keep row for 7 days so it can be restored
+      await sql`UPDATE parts SET deleted_at = NOW() WHERE id = ${id}`;
       return res.json({ ok: true });
     }
 
