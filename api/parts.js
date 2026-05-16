@@ -22,28 +22,30 @@ module.exports = async (req, res) => {
       const body = await parseBody(req);
       const mod = normalizeModule(body.module);
       const { sku, name, category, unit, minQty, desc } = body;
-      if (!sku  || !sku.trim())  return res.status(400).json({ error: 'SKU / Part No. required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       if (!category)             return res.status(400).json({ error: 'Category required' });
-      const skuTrim = sku.trim();
-      // Case-insensitive lookup across ALL modules
-      const dup = await sql`
-        SELECT id, sku, name, category, module, unit, qty,
-               min_qty AS "minQty", description AS "desc"
-        FROM parts
-        WHERE LOWER(sku) = LOWER(${skuTrim}) AND deleted_at IS NULL
-        LIMIT 1
-      `;
-      if (dup.length > 0) {
-        return res.status(409).json({
-          error: 'SKU "' + dup[0].sku + '" already exists',
-          existing: dup[0]
-        });
+      const skuTrim = (sku || '').trim();
+      const skuVal = skuTrim || null;
+      // Only check duplicates when an SKU is provided
+      if (skuVal) {
+        const dup = await sql`
+          SELECT id, sku, name, category, module, unit, qty,
+                 min_qty AS "minQty", description AS "desc"
+          FROM parts
+          WHERE LOWER(sku) = LOWER(${skuVal}) AND deleted_at IS NULL
+          LIMIT 1
+        `;
+        if (dup.length > 0) {
+          return res.status(409).json({
+            error: 'SKU "' + dup[0].sku + '" already exists',
+            existing: dup[0]
+          });
+        }
       }
       const rows = await sql`
         INSERT INTO parts (sku, name, category, module, unit, qty, min_qty, description)
         VALUES (
-          ${skuTrim}, ${name.trim()}, ${category}, ${mod}, ${unit || 'pcs'},
+          ${skuVal}, ${name.trim()}, ${category}, ${mod}, ${unit || 'pcs'},
           0, ${minQty || 0}, ${desc || ''}
         )
         RETURNING id, sku, name, category, module, unit, qty,
@@ -56,19 +58,20 @@ module.exports = async (req, res) => {
       const body = await parseBody(req);
       const { id, sku, name, category, unit, minQty, desc } = body;
       if (!id)                   return res.status(400).json({ error: 'ID required' });
-      if (!sku  || !sku.trim())  return res.status(400).json({ error: 'SKU / Part No. required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
+      const skuTrim = (sku || '').trim();
+      const skuVal = skuTrim || null;
       try {
         await sql`
           UPDATE parts
-          SET sku = ${sku.trim()}, name = ${name.trim()}, category = ${category},
+          SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
               unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
           WHERE id = ${id}
         `;
         return res.json({ ok: true });
       } catch (e) {
         if (String(e.message).includes('parts_sku_unique') || e.code === '23505') {
-          return res.status(409).json({ error: 'SKU "' + sku.trim() + '" already exists' });
+          return res.status(409).json({ error: 'SKU "' + skuTrim + '" already exists' });
         }
         throw e;
       }

@@ -262,7 +262,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <div class="modal-overlay" id="modal-addPart">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-package"></i> Add New Part</div>
-    <div class="form-group"><label class="form-label">SKU / Part No. *</label><input id="f-part-sku" placeholder="e.g. BRG-6204"></div>
+    <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-part-sku" placeholder="e.g. BRG-6204"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-part-name" placeholder="e.g. Bearing 6204"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-part-cat"></select></div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
@@ -329,7 +329,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
   <div class="modal">
     <div class="modal-title"><i class="ti ti-edit"></i> Edit Part</div>
     <input type="hidden" id="f-edit-id">
-    <div class="form-group"><label class="form-label">SKU / Part No. *</label><input id="f-edit-sku"></div>
+    <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-edit-sku"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-edit-name"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-edit-cat"></select></div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
@@ -740,7 +740,6 @@ function doExport(){
 async function savePart(){
   const sku=document.getElementById('f-part-sku').value.trim();
   const name=document.getElementById('f-part-name').value.trim();
-  if(!sku)return alert('SKU / Part No. is required');
   if(!name)return alert('Part name is required');
   const qty=parseInt(document.getElementById('f-part-qty').value)||0;
   const fields=['f-part-sku','f-part-name','f-part-qty','f-part-min','f-part-desc'];
@@ -756,8 +755,8 @@ async function savePart(){
     await loadAll();
   }
 
-  // Client-side check in current module first (fast path, case-insensitive)
-  const local=state.parts.find(p=>(p.sku||'').toLowerCase()===sku.toLowerCase());
+  // Only check for SKU duplicates if an SKU was actually entered
+  const local=sku?state.parts.find(p=>(p.sku||'').toLowerCase()===sku.toLowerCase()):null;
   if(local){
     const msg='SKU "'+local.sku+'" already exists as "'+local.name+'" ('+local.qty+' '+local.unit+' on hand).\n\n'
       +(qty>0?'Add '+qty+' '+local.unit+' to this existing part?':'Open it instead of creating a new one?');
@@ -869,7 +868,6 @@ async function updatePart(){
   const id=parseInt(document.getElementById('f-edit-id').value);
   const sku=document.getElementById('f-edit-sku').value.trim();
   const name=document.getElementById('f-edit-name').value.trim();
-  if(!sku)return alert('SKU / Part No. required');
   if(!name)return alert('Part name required');
   try{
     await apiFetch('/api/parts','PUT',{
