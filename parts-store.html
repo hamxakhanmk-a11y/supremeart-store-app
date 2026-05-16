@@ -80,6 +80,10 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .mod-pill.active{background:#1a1a1a;color:#fff}
 .mod-pill i{font-size:15px}
 .sel-controls{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.preset-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding:8px 10px;background:#f5f7fa;border-radius:8px;border:1px solid #e8e8e6}
+.preset-row .preset-label{font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-right:4px}
+.preset-btn{padding:5px 11px;border-radius:999px;border:1px solid #d0d0cc;background:#fff;color:#333;font-size:12px;cursor:pointer;font-family:inherit;font-weight:500;transition:all 0.15s}
+.preset-btn:hover{background:#185FA5;color:#fff;border-color:#185FA5}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -344,6 +348,15 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <div class="modal-overlay" id="modal-print">
   <div class="modal modal-wide">
     <div class="modal-title"><i class="ti ti-printer"></i> Select Entries to Print</div>
+    <div class="preset-row" id="preset-row-print">
+      <span class="preset-label"><i class="ti ti-calendar"></i> Quick range:</span>
+      <button class="preset-btn" onclick="applyDatePreset('print','today')">Today</button>
+      <button class="preset-btn" onclick="applyDatePreset('print','week')">This Week</button>
+      <button class="preset-btn" onclick="applyDatePreset('print','month')">This Month</button>
+      <button class="preset-btn" onclick="applyDatePreset('print','lastmonth')">Last Month</button>
+      <button class="preset-btn" onclick="applyDatePreset('print','year')">This Year</button>
+      <button class="preset-btn" onclick="applyDatePreset('print','all')">All</button>
+    </div>
     <div class="sel-controls">
       <button class="btn btn-sm" onclick="selAll('print',true)">Select All</button>
       <button class="btn btn-sm" onclick="selAll('print',false)">Deselect All</button>
@@ -366,6 +379,15 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <div class="modal-overlay" id="modal-export">
   <div class="modal modal-wide">
     <div class="modal-title"><i class="ti ti-file-spreadsheet" style="color:#1D6F42"></i> Select Entries to Export to Excel</div>
+    <div class="preset-row" id="preset-row-export">
+      <span class="preset-label"><i class="ti ti-calendar"></i> Quick range:</span>
+      <button class="preset-btn" onclick="applyDatePreset('export','today')">Today</button>
+      <button class="preset-btn" onclick="applyDatePreset('export','week')">This Week</button>
+      <button class="preset-btn" onclick="applyDatePreset('export','month')">This Month</button>
+      <button class="preset-btn" onclick="applyDatePreset('export','lastmonth')">Last Month</button>
+      <button class="preset-btn" onclick="applyDatePreset('export','year')">This Year</button>
+      <button class="preset-btn" onclick="applyDatePreset('export','all')">All</button>
+    </div>
     <div class="sel-controls">
       <button class="btn btn-sm" onclick="selAll('export',true)">Select All</button>
       <button class="btn btn-sm" onclick="selAll('export',false)">Deselect All</button>
@@ -535,9 +557,12 @@ function rowCells(sec,item,i){
 }
 
 // ---- PRINT ----
+let _activeData=[];
+
 function openPrintModal(sec){
   _activeSection=sec;
   const data=getSectionData(sec);
+  _activeData=data;
   const headers=getHeaders(sec);
   const thead=document.getElementById('sel-print-thead');
   const tbody=document.getElementById('sel-print-tbody');
@@ -546,6 +571,7 @@ function openPrintModal(sec){
     const cells=rowCells(sec,item,i);
     return`<tr><td><input type="checkbox" class="sel-chk-print" data-i="${i}" checked onchange="updCount('print')"></td>${cells.slice(1).map(c=>`<td>${c}</td>`).join('')}</tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;color:#aaa;padding:1.5rem">No data to show</td></tr>';
+  document.getElementById('preset-row-print').style.display=sec==='inventory'?'none':'flex';
   updCount('print');
   openModal('print');
 }
@@ -553,6 +579,7 @@ function openPrintModal(sec){
 function openExportModal(sec){
   _activeSection=sec;
   const data=getSectionData(sec);
+  _activeData=data;
   const headers=getHeaders(sec);
   const thead=document.getElementById('sel-export-thead');
   const tbody=document.getElementById('sel-export-tbody');
@@ -561,8 +588,53 @@ function openExportModal(sec){
     const cells=rowCells(sec,item,i);
     return`<tr><td><input type="checkbox" class="sel-chk-export" data-i="${i}" checked onchange="updCount('export')"></td>${cells.slice(1).map(c=>`<td>${c}</td>`).join('')}</tr>`;
   }).join(''):'<tr><td colspan="8" style="text-align:center;color:#aaa;padding:1.5rem">No data to show</td></tr>';
+  document.getElementById('preset-row-export').style.display=sec==='inventory'?'none':'flex';
   updCount('export');
   openModal('export');
+}
+
+function dateRangeFor(preset){
+  const now=new Date();now.setHours(0,0,0,0);
+  const today=new Date(now);
+  let start,end;
+  if(preset==='today'){start=new Date(today);end=new Date(today);end.setHours(23,59,59,999);}
+  else if(preset==='week'){
+    const dow=(today.getDay()+6)%7; // Mon=0
+    start=new Date(today);start.setDate(today.getDate()-dow);
+    end=new Date(start);end.setDate(start.getDate()+6);end.setHours(23,59,59,999);
+  } else if(preset==='month'){
+    start=new Date(today.getFullYear(),today.getMonth(),1);
+    end=new Date(today.getFullYear(),today.getMonth()+1,0,23,59,59,999);
+  } else if(preset==='lastmonth'){
+    start=new Date(today.getFullYear(),today.getMonth()-1,1);
+    end=new Date(today.getFullYear(),today.getMonth(),0,23,59,59,999);
+  } else if(preset==='year'){
+    start=new Date(today.getFullYear(),0,1);
+    end=new Date(today.getFullYear(),11,31,23,59,59,999);
+  }
+  return{start,end};
+}
+
+function applyDatePreset(type,preset){
+  if(preset==='all'){selAll(type,true);return;}
+  if(_activeSection==='inventory')return; // no dates
+  const{start,end}=dateRangeFor(preset);
+  let inRange=0;
+  document.querySelectorAll('.sel-chk-'+type).forEach(c=>{
+    const idx=parseInt(c.dataset.i);
+    const item=_activeData[idx];
+    if(!item||!item.date){c.checked=false;return;}
+    const d=new Date(item.date+'T00:00:00');
+    const hit=d>=start&&d<=end;
+    c.checked=hit;
+    if(hit)inRange++;
+  });
+  const ca=document.getElementById('chk-all-'+type);if(ca)ca.checked=false;
+  updCount(type);
+  if(inRange===0){
+    const labels={today:'Today',week:'This Week',month:'This Month',lastmonth:'Last Month',year:'This Year'};
+    alert('No entries found for '+(labels[preset]||preset)+'.');
+  }
 }
 
 function selAll(type,v){
