@@ -401,7 +401,12 @@ async function apiFetch(url, method='GET', body=null){
   if(body!==null)opts.body=JSON.stringify(body);
   const r=await fetch(url,opts);
   const data=await r.json();
-  if(!r.ok)throw new Error(data.error||'Request failed');
+  if(!r.ok){
+    const err=new Error(data.error||'Request failed');
+    err.status=r.status;
+    err.data=data;
+    throw err;
+  }
   return data;
 }
 
@@ -648,21 +653,28 @@ async function savePart(){
   if(!sku)return alert('SKU / Part No. is required');
   if(!name)return alert('Part name is required');
   const qty=parseInt(document.getElementById('f-part-qty').value)||0;
-  const existing=state.parts.find(p=>(p.sku||'').toLowerCase()===sku.toLowerCase());
   const fields=['f-part-sku','f-part-name','f-part-qty','f-part-min','f-part-desc'];
-  if(existing){
+
+  async function mergeIntoExisting(existing){
     if(qty>0){
       try{
-        await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added to existing part'});
-        alert('SKU "'+existing.sku+'" ('+existing.name+') already exists. Added '+qty+' '+existing.unit+'.');
+        await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added (matched by SKU)'});
       }catch(e){return alert(e.message);}
-    }else{
-      alert('SKU "'+existing.sku+'" ('+existing.name+') already exists in inventory.');
     }
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
-    await loadAll();return;
+    await loadAll();
   }
+
+  // Client-side check in current module first (fast path, case-insensitive)
+  const local=state.parts.find(p=>(p.sku||'').toLowerCase()===sku.toLowerCase());
+  if(local){
+    const msg='SKU "'+local.sku+'" already exists as "'+local.name+'" ('+local.qty+' '+local.unit+' on hand).\n\n'
+      +(qty>0?'Add '+qty+' '+local.unit+' to this existing part?':'Open it instead of creating a new one?');
+    if(!confirm(msg))return;
+    return mergeIntoExisting(local);
+  }
+
   try{
     const newPart=await apiFetch('/api/parts','POST',{
       sku,name,
@@ -678,7 +690,26 @@ async function savePart(){
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
     await loadAll();
-  }catch(e){alert(e.message);}
+  }catch(e){
+    // Server says this SKU already exists (likely in the OTHER module)
+    if(e.status===409 && e.data && e.data.existing){
+      const ex=e.data.existing;
+      const sameMod=ex.module===state.module;
+      const modLabel=MODULE_LABEL[ex.module]||ex.module;
+      if(sameMod){
+        if(confirm('SKU "'+ex.sku+'" already exists as "'+ex.name+'".\n\n'+(qty>0?'Add '+qty+' '+ex.unit+' to it?':'OK to skip creating a duplicate?'))){
+          return mergeIntoExisting(ex);
+        }
+        return;
+      }
+      // Cross-module collision
+      if(confirm('SKU "'+ex.sku+'" already exists in '+modLabel+' as "'+ex.name+'".\n\n'+(qty>0?'Add '+qty+' '+ex.unit+' to that existing part instead?':'OK to cancel and use it from that module?'))){
+        return mergeIntoExisting(ex);
+      }
+      return;
+    }
+    alert(e.message);
+  }
 }
 
 async function saveStockIn(){

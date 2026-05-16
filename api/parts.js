@@ -24,23 +24,31 @@ module.exports = async (req, res) => {
       if (!sku  || !sku.trim())  return res.status(400).json({ error: 'SKU / Part No. required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       if (!category)             return res.status(400).json({ error: 'Category required' });
-      try {
-        const rows = await sql`
-          INSERT INTO parts (sku, name, category, module, unit, qty, min_qty, description)
-          VALUES (
-            ${sku.trim()}, ${name.trim()}, ${category}, ${mod}, ${unit || 'pcs'},
-            0, ${minQty || 0}, ${desc || ''}
-          )
-          RETURNING id, sku, name, category, module, unit, qty,
-                    min_qty AS "minQty", description AS "desc"
-        `;
-        return res.json(rows[0]);
-      } catch (e) {
-        if (String(e.message).includes('parts_sku_unique') || e.code === '23505') {
-          return res.status(409).json({ error: 'SKU "' + sku.trim() + '" already exists' });
-        }
-        throw e;
+      const skuTrim = sku.trim();
+      // Case-insensitive lookup across ALL modules
+      const dup = await sql`
+        SELECT id, sku, name, category, module, unit, qty,
+               min_qty AS "minQty", description AS "desc"
+        FROM parts
+        WHERE LOWER(sku) = LOWER(${skuTrim})
+        LIMIT 1
+      `;
+      if (dup.length > 0) {
+        return res.status(409).json({
+          error: 'SKU "' + dup[0].sku + '" already exists',
+          existing: dup[0]
+        });
       }
+      const rows = await sql`
+        INSERT INTO parts (sku, name, category, module, unit, qty, min_qty, description)
+        VALUES (
+          ${skuTrim}, ${name.trim()}, ${category}, ${mod}, ${unit || 'pcs'},
+          0, ${minQty || 0}, ${desc || ''}
+        )
+        RETURNING id, sku, name, category, module, unit, qty,
+                  min_qty AS "minQty", description AS "desc"
+      `;
+      return res.json(rows[0]);
     }
 
     if (req.method === 'PUT') {
