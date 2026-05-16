@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const mod = normalizeModule(req.query.module);
       const rows = await sql`
-        SELECT id, sku, name, category, module, unit, qty,
+        SELECT id, sku, name, category, machine, module, unit, qty,
                min_qty     AS "minQty",
                description AS "desc"
         FROM parts
@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const body = await parseBody(req);
       const mod = normalizeModule(body.module);
-      const { sku, name, category, unit, minQty, desc } = body;
+      const { sku, name, category, machine, unit, minQty, desc } = body;
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       if (!category)             return res.status(400).json({ error: 'Category required' });
       const skuTrim = (sku || '').trim();
@@ -43,12 +43,12 @@ module.exports = async (req, res) => {
         }
       }
       const rows = await sql`
-        INSERT INTO parts (sku, name, category, module, unit, qty, min_qty, description)
+        INSERT INTO parts (sku, name, category, machine, module, unit, qty, min_qty, description)
         VALUES (
-          ${skuVal}, ${name.trim()}, ${category}, ${mod}, ${unit || 'pcs'},
+          ${skuVal}, ${name.trim()}, ${category}, ${machine || ''}, ${mod}, ${unit || 'pcs'},
           0, ${minQty || 0}, ${desc || ''}
         )
-        RETURNING id, sku, name, category, module, unit, qty,
+        RETURNING id, sku, name, category, machine, module, unit, qty,
                   min_qty AS "minQty", description AS "desc"
       `;
       return res.json(rows[0]);
@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'PUT') {
       const body = await parseBody(req);
-      const { id, sku, name, category, unit, minQty, desc } = body;
+      const { id, sku, name, category, machine, unit, minQty, desc } = body;
       if (!id)                   return res.status(400).json({ error: 'ID required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       const skuTrim = (sku || '').trim();
@@ -65,6 +65,7 @@ module.exports = async (req, res) => {
         await sql`
           UPDATE parts
           SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+              machine = ${machine || ''},
               unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
           WHERE id = ${id}
         `;

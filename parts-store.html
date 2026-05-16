@@ -119,6 +119,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="nav-item" onclick="showPage('issuance',this)"><i class="ti ti-clipboard-list"></i> Issuance Log</div>
     <div class="divider"></div>
     <div class="nav-item" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
+    <div class="nav-item" onclick="showPage('machines',this)"><i class="ti ti-building-factory-2"></i> Machines</div>
     <div class="nav-item" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
   </div>
 
@@ -160,10 +161,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       <div class="search-bar no-print">
         <input type="text" placeholder="Search parts..." id="inv-search" oninput="renderInventory()">
         <select id="inv-cat-filter" onchange="renderInventory()" style="width:170px"></select>
+        <select id="inv-machine-filter" onchange="renderInventory()" style="width:170px"></select>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th>#</th><th>SKU / Part No.</th><th>Part Name</th><th>Category</th><th>Unit</th><th>Qty on Hand</th><th>Min Qty</th><th>Status</th><th class="no-print" style="width:110px">Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>SKU / Part No.</th><th>Part Name</th><th>Category</th><th>Machine</th><th>Unit</th><th>Qty on Hand</th><th>Min Qty</th><th>Status</th><th class="no-print" style="width:110px">Actions</th></tr></thead>
           <tbody id="inv-table"></tbody>
         </table>
       </div>
@@ -241,6 +243,20 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
     </div>
 
+    <!-- MACHINES -->
+    <div class="page" id="page-machines">
+      <div class="page-header">
+        <div class="page-title">Machines / Equipment</div>
+        <button class="btn btn-primary" onclick="openModal('addMachine')"><i class="ti ti-plus"></i> Add Machine</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>Machine Name</th><th>Parts Count</th><th style="width:80px">Actions</th></tr></thead>
+          <tbody id="machine-table"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- TRASH -->
     <div class="page" id="page-trash">
       <div class="page-header">
@@ -265,6 +281,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-part-sku" placeholder="e.g. BRG-6204"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-part-name" placeholder="e.g. Bearing 6204"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-part-cat"></select></div>
+    <div class="form-group"><label class="form-label">Machine / Equipment</label><select id="f-part-machine"></select></div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
       <select id="f-part-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
     </div>
@@ -325,6 +342,17 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-addMachine">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-building-factory-2"></i> Add Machine / Equipment</div>
+    <div class="form-group"><label class="form-label">Machine Name *</label><input id="f-machine-name" placeholder="e.g. Heidelberg Press, Komori 8-Color..."></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addMachine')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMachine()">Save Machine</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-editPart">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-edit"></i> Edit Part</div>
@@ -332,6 +360,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-edit-sku"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-edit-name"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-edit-cat"></select></div>
+    <div class="form-group"><label class="form-label">Machine / Equipment</label><select id="f-edit-machine"></select></div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
       <select id="f-edit-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
     </div>
@@ -411,6 +440,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 let state = {
   module: localStorage.getItem('activeModule') || 'machinery',
   categories: [],
+  machines: [],
   parts: [],
   transactions: [],
   trash: []
@@ -451,13 +481,15 @@ async function apiFetch(url, method='GET', body=null){
 async function loadAll(){
   try{
     const m='?module='+encodeURIComponent(state.module);
-    const [categories,parts,transactions,trash]=await Promise.all([
+    const [categories,machines,parts,transactions,trash]=await Promise.all([
       apiFetch('/api/categories'+m),
+      apiFetch('/api/machines'+m),
       apiFetch('/api/parts'+m),
       apiFetch('/api/transactions'),
       apiFetch('/api/trash'+m)
     ]);
     state.categories=categories;
+    state.machines=machines;
     state.parts=parts;
     state.trash=trash.items||[];
     // Only transactions for parts in this module
@@ -478,7 +510,7 @@ async function showPage(id,el){
 function openModal(id){
   if(id==='addIn'){document.getElementById('f-in-date').value=today();populatePartSelect('f-in-part')}
   if(id==='addOut'){document.getElementById('f-out-date').value=today();populatePartSelect('f-out-part')}
-  if(id==='addPart'){populateCatSelect('f-part-cat')}
+  if(id==='addPart'){populateCatSelect('f-part-cat');populateMachineSelect('f-part-machine')}
   document.getElementById('modal-'+id).classList.add('open');
 }
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
@@ -506,6 +538,28 @@ function populateCatSelect(id){
     }catch(e){alert(e.message);populateCatSelect(id);}
   };
 }
+function populateMachineSelect(id){
+  const el=document.getElementById(id);
+  const prev=el.value;
+  el.innerHTML='<option value="">— None —</option>'+state.machines.map(m=>`<option>${m}</option>`).join('')+'<option value="__add__" style="font-style:italic;color:#185FA5">+ Add new machine…</option>';
+  if(prev && state.machines.includes(prev)) el.value=prev;
+  el.onchange=async function(){
+    if(this.value!=='__add__')return;
+    const name=(prompt('New machine name:')||'').trim();
+    if(!name){populateMachineSelect(id);return;}
+    if(state.machines.some(c=>c.toLowerCase()===name.toLowerCase())){
+      alert('Machine already exists');
+      this.value=state.machines.find(c=>c.toLowerCase()===name.toLowerCase());
+      return;
+    }
+    try{
+      await apiFetch('/api/machines','POST',{name,module:state.module});
+      await loadAll();
+      populateMachineSelect(id);
+      document.getElementById(id).value=name;
+    }catch(e){alert(e.message);populateMachineSelect(id);}
+  };
+}
 function populatePartSelect(id){document.getElementById(id).innerHTML=state.parts.map(p=>`<option value="${p.id}">${p.name} (${p.qty} ${p.unit})</option>`).join('')}
 
 function getPartName(id){const p=state.parts.find(x=>x.id===id);return p?p.name:'Unknown'}
@@ -522,7 +576,13 @@ function getSectionData(sec){
   if(sec==='inventory'){
     const s=(document.getElementById('inv-search')||{value:''}).value.toLowerCase();
     const c=(document.getElementById('inv-cat-filter')||{value:''}).value;
-    return state.parts.filter(p=>(!s||p.name.toLowerCase().includes(s)||p.category.toLowerCase().includes(s))&&(!c||p.category===c));
+    const m=(document.getElementById('inv-machine-filter')||{value:''}).value;
+    return state.parts.filter(p=>{
+      const txt=!s||p.name.toLowerCase().includes(s)||(p.sku||'').toLowerCase().includes(s)||p.category.toLowerCase().includes(s)||(p.machine||'').toLowerCase().includes(s);
+      const cat=!c||p.category===c;
+      const mach=!m||(m==='__none__'?!p.machine:p.machine===m);
+      return txt&&cat&&mach;
+    });
   }
   if(sec==='stockin') return [...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id);
   if(sec==='stockout') return [...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id);
@@ -538,7 +598,7 @@ function getSectionData(sec){
 }
 
 function getHeaders(sec){
-  if(sec==='inventory') return['#','SKU / Part No.','Part Name','Category','Unit','Qty on Hand','Min Qty','Status'];
+  if(sec==='inventory') return['#','SKU / Part No.','Part Name','Category','Machine','Unit','Qty on Hand','Min Qty','Status'];
   if(sec==='stockin')   return['#','Date','Part Name','Category','Qty Added','Supplier / Ref','Notes'];
   if(sec==='stockout')  return['#','Date','Part Name','Category','Qty Issued','Issued To','Purpose'];
   if(sec==='issuance')  return['#','Date','Part Name','Type','Qty','Issued To / Supplier','Purpose / Notes'];
@@ -548,7 +608,7 @@ function getHeaders(sec){
 function rowCells(sec,item,i){
   if(sec==='inventory'){
     const s=stockStatus(item);
-    return[i+1,item.sku||'—',item.name,item.category,item.unit,item.qty,item.minQty,s.label];
+    return[i+1,item.sku||'—',item.name,item.category,item.machine||'—',item.unit,item.qty,item.minQty,s.label];
   }
   if(sec==='stockin')  return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'+'+item.qty+' '+getPartUnit(item.partId),item.ref||'—',item.notes||'—'];
   if(sec==='stockout') return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'-'+item.qty+' '+getPartUnit(item.partId),item.issuedTo||'—',item.purpose||'—'];
@@ -769,6 +829,7 @@ async function savePart(){
       sku,name,
       module:state.module,
       category:document.getElementById('f-part-cat').value,
+      machine:document.getElementById('f-part-machine').value,
       unit:document.getElementById('f-part-unit').value,
       minQty:parseInt(document.getElementById('f-part-min').value)||0,
       desc:document.getElementById('f-part-desc').value.trim()
@@ -850,6 +911,27 @@ async function saveCat(){
   }catch(e){alert(e.message);}
 }
 
+async function saveMachine(){
+  const name=document.getElementById('f-machine-name').value.trim();
+  if(!name)return alert('Machine name required');
+  if(state.machines.some(m=>m.toLowerCase()===name.toLowerCase()))return alert('Machine already exists');
+  try{
+    await apiFetch('/api/machines','POST',{name,module:state.module});
+    closeModal('addMachine');
+    document.getElementById('f-machine-name').value='';
+    await loadAll();
+  }catch(e){alert(e.message);}
+}
+
+async function deleteMachine(name){
+  if(state.parts.some(p=>p.machine===name))return alert('Cannot delete: parts are assigned to this machine. Reassign them first.');
+  if(!confirm('Delete machine "'+name+'"?'))return;
+  try{
+    await apiFetch('/api/machines?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
+    await loadAll();
+  }catch(e){alert(e.message);}
+}
+
 function openEditPart(id){
   const p=state.parts.find(x=>x.id===id);
   if(!p)return;
@@ -858,6 +940,8 @@ function openEditPart(id){
   document.getElementById('f-edit-name').value=p.name;
   populateCatSelect('f-edit-cat');
   document.getElementById('f-edit-cat').value=p.category;
+  populateMachineSelect('f-edit-machine');
+  document.getElementById('f-edit-machine').value=p.machine||'';
   document.getElementById('f-edit-unit').value=p.unit;
   document.getElementById('f-edit-min').value=p.minQty;
   document.getElementById('f-edit-desc').value=p.desc||'';
@@ -873,6 +957,7 @@ async function updatePart(){
     await apiFetch('/api/parts','PUT',{
       id,sku,name,
       category:document.getElementById('f-edit-cat').value,
+      machine:document.getElementById('f-edit-machine').value,
       unit:document.getElementById('f-edit-unit').value,
       minQty:parseInt(document.getElementById('f-edit-min').value)||0,
       desc:document.getElementById('f-edit-desc').value.trim()
@@ -949,12 +1034,20 @@ function renderDashboard(){
 function renderInventory(){
   const search=(document.getElementById('inv-search')||{value:''}).value.toLowerCase();
   const catF=(document.getElementById('inv-cat-filter')||{value:''}).value;
+  const machF=(document.getElementById('inv-machine-filter')||{value:''}).value;
   const catSel=document.getElementById('inv-cat-filter');
   if(catSel){catSel.innerHTML='<option value="">All Categories</option>'+state.categories.map(c=>`<option value="${c}">${c}</option>`).join('');catSel.value=catF;}
-  const parts=state.parts.filter(p=>(!search||p.name.toLowerCase().includes(search)||(p.sku||'').toLowerCase().includes(search)||p.category.toLowerCase().includes(search))&&(!catF||p.category===catF));
+  const machSel=document.getElementById('inv-machine-filter');
+  if(machSel){machSel.innerHTML='<option value="">All Machines</option><option value="__none__">— No machine —</option>'+state.machines.map(m=>`<option value="${m}">${m}</option>`).join('');machSel.value=machF;}
+  const parts=state.parts.filter(p=>{
+    const txt=!search||p.name.toLowerCase().includes(search)||(p.sku||'').toLowerCase().includes(search)||p.category.toLowerCase().includes(search)||(p.machine||'').toLowerCase().includes(search);
+    const cat=!catF||p.category===catF;
+    const mach=!machF||(machF==='__none__'?!p.machine:p.machine===machF);
+    return txt&&cat&&mach;
+  });
   const tb=document.getElementById('inv-table');
   if(!tb)return;
-  if(!parts.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No parts found</div></td></tr>';return;}
+  if(!parts.length){tb.innerHTML='<tr><td colspan="10"><div class="empty"><i class="ti ti-search"></i>No parts found</div></td></tr>';return;}
   tb.innerHTML=parts.map((p,i)=>{
     const s=stockStatus(p);
     return`<tr>
@@ -962,6 +1055,7 @@ function renderInventory(){
       <td style="font-family:monospace;font-weight:600;color:#185FA5">${p.sku||'—'}</td>
       <td style="font-weight:600">${p.name}${p.desc?`<br><span style="font-size:11px;color:#bbb;font-weight:400">${p.desc}</span>`:''}</td>
       <td>${p.category}</td>
+      <td style="color:#555">${p.machine||'—'}</td>
       <td style="color:#888">${p.unit}</td>
       <td style="font-weight:700;font-size:15px">${p.qty}</td>
       <td style="color:#888">${p.minQty}</td>
@@ -1039,6 +1133,16 @@ function renderCategories(){
   }).join('');
 }
 
+function renderMachines(){
+  const tb=document.getElementById('machine-table');
+  if(!tb)return;
+  if(!state.machines.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-building-factory-2"></i>No machines added yet</div></td></tr>';return;}
+  tb.innerHTML=state.machines.map(m=>{
+    const count=state.parts.filter(p=>p.machine===m).length;
+    return`<tr><td style="font-weight:600">${m}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteMachine('${m.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button></td></tr>`;
+  }).join('');
+}
+
 function renderTrash(){
   const tb=document.getElementById('trash-table');
   if(!tb)return;
@@ -1059,7 +1163,7 @@ function renderTrash(){
     </td>
   </tr>`).join('');
 }
-function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderTrash();}
+function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderMachines();renderTrash();}
 // Apply persisted module to UI before first load
 (function initModule(){
   const m=state.module;

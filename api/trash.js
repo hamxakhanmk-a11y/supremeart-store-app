@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const mod = normalizeModule(req.query.module);
       const rows = await sql`
-        SELECT id, sku, name, category, module, unit, qty,
+        SELECT id, sku, name, category, machine, module, unit, qty,
                min_qty     AS "minQty",
                description AS "desc",
                deleted_at::text AS "deletedAt",
