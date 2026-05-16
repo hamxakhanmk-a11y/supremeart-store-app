@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
       const rows = await sql`
-        SELECT id, name, category, unit, qty,
+        SELECT id, sku, name, category, unit, qty,
                min_qty     AS "minQty",
                description AS "desc"
         FROM parts ORDER BY id
@@ -15,32 +15,48 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-      const { name, category, unit, minQty, desc } = await parseBody(req);
+      const { sku, name, category, unit, minQty, desc } = await parseBody(req);
+      if (!sku  || !sku.trim())  return res.status(400).json({ error: 'SKU / Part No. required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       if (!category)             return res.status(400).json({ error: 'Category required' });
-      const rows = await sql`
-        INSERT INTO parts (name, category, unit, qty, min_qty, description)
-        VALUES (
-          ${name.trim()}, ${category}, ${unit || 'pcs'},
-          0, ${minQty || 0}, ${desc || ''}
-        )
-        RETURNING id, name, category, unit, qty,
-                  min_qty AS "minQty", description AS "desc"
-      `;
-      return res.json(rows[0]);
+      try {
+        const rows = await sql`
+          INSERT INTO parts (sku, name, category, unit, qty, min_qty, description)
+          VALUES (
+            ${sku.trim()}, ${name.trim()}, ${category}, ${unit || 'pcs'},
+            0, ${minQty || 0}, ${desc || ''}
+          )
+          RETURNING id, sku, name, category, unit, qty,
+                    min_qty AS "minQty", description AS "desc"
+        `;
+        return res.json(rows[0]);
+      } catch (e) {
+        if (String(e.message).includes('parts_sku_unique') || e.code === '23505') {
+          return res.status(409).json({ error: 'SKU "' + sku.trim() + '" already exists' });
+        }
+        throw e;
+      }
     }
 
     if (req.method === 'PUT') {
-      const { id, name, category, unit, minQty, desc } = await parseBody(req);
+      const { id, sku, name, category, unit, minQty, desc } = await parseBody(req);
       if (!id)                   return res.status(400).json({ error: 'ID required' });
+      if (!sku  || !sku.trim())  return res.status(400).json({ error: 'SKU / Part No. required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
-      await sql`
-        UPDATE parts
-        SET name = ${name.trim()}, category = ${category}, unit = ${unit},
-            min_qty = ${minQty || 0}, description = ${desc || ''}
-        WHERE id = ${id}
-      `;
-      return res.json({ ok: true });
+      try {
+        await sql`
+          UPDATE parts
+          SET sku = ${sku.trim()}, name = ${name.trim()}, category = ${category},
+              unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
+          WHERE id = ${id}
+        `;
+        return res.json({ ok: true });
+      } catch (e) {
+        if (String(e.message).includes('parts_sku_unique') || e.code === '23505') {
+          return res.status(409).json({ error: 'SKU "' + sku.trim() + '" already exists' });
+        }
+        throw e;
+      }
     }
 
     if (req.method === 'DELETE') {

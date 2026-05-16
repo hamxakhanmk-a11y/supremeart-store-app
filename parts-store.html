@@ -147,7 +147,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th>#</th><th>Part Name</th><th>Category</th><th>Unit</th><th>Qty on Hand</th><th>Min Qty</th><th>Status</th><th class="no-print" style="width:110px">Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>SKU / Part No.</th><th>Part Name</th><th>Category</th><th>Unit</th><th>Qty on Hand</th><th>Min Qty</th><th>Status</th><th class="no-print" style="width:110px">Actions</th></tr></thead>
           <tbody id="inv-table"></tbody>
         </table>
       </div>
@@ -232,6 +232,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <div class="modal-overlay" id="modal-addPart">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-package"></i> Add New Part</div>
+    <div class="form-group"><label class="form-label">SKU / Part No. *</label><input id="f-part-sku" placeholder="e.g. BRG-6204"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-part-name" placeholder="e.g. Bearing 6204"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-part-cat"></select></div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
@@ -298,6 +299,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
   <div class="modal">
     <div class="modal-title"><i class="ti ti-edit"></i> Edit Part</div>
     <input type="hidden" id="f-edit-id">
+    <div class="form-group"><label class="form-label">SKU / Part No. *</label><input id="f-edit-sku"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-edit-name"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-edit-cat"></select></div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
@@ -443,7 +445,7 @@ function getSectionData(sec){
 }
 
 function getHeaders(sec){
-  if(sec==='inventory') return['#','Part Name','Category','Unit','Qty on Hand','Min Qty','Status'];
+  if(sec==='inventory') return['#','SKU / Part No.','Part Name','Category','Unit','Qty on Hand','Min Qty','Status'];
   if(sec==='stockin')   return['#','Date','Part Name','Category','Qty Added','Supplier / Ref','Notes'];
   if(sec==='stockout')  return['#','Date','Part Name','Category','Qty Issued','Issued To','Purpose'];
   if(sec==='issuance')  return['#','Date','Part Name','Type','Qty','Issued To / Supplier','Purpose / Notes'];
@@ -453,7 +455,7 @@ function getHeaders(sec){
 function rowCells(sec,item,i){
   if(sec==='inventory'){
     const s=stockStatus(item);
-    return[i+1,item.name,item.category,item.unit,item.qty,item.minQty,s.label];
+    return[i+1,item.sku||'—',item.name,item.category,item.unit,item.qty,item.minQty,s.label];
   }
   if(sec==='stockin')  return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'+'+item.qty+' '+getPartUnit(item.partId),item.ref||'—',item.notes||'—'];
   if(sec==='stockout') return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'-'+item.qty+' '+getPartUnit(item.partId),item.issuedTo||'—',item.purpose||'—'];
@@ -593,26 +595,29 @@ function doExport(){
 
 // ---- CRUD ----
 async function savePart(){
+  const sku=document.getElementById('f-part-sku').value.trim();
   const name=document.getElementById('f-part-name').value.trim();
+  if(!sku)return alert('SKU / Part No. is required');
   if(!name)return alert('Part name is required');
   const qty=parseInt(document.getElementById('f-part-qty').value)||0;
-  const existing=state.parts.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  const existing=state.parts.find(p=>(p.sku||'').toLowerCase()===sku.toLowerCase());
+  const fields=['f-part-sku','f-part-name','f-part-qty','f-part-min','f-part-desc'];
   if(existing){
     if(qty>0){
       try{
         await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added to existing part'});
-        alert('"'+existing.name+'" already exists. Added '+qty+' '+existing.unit+'.');
+        alert('SKU "'+existing.sku+'" ('+existing.name+') already exists. Added '+qty+' '+existing.unit+'.');
       }catch(e){return alert(e.message);}
     }else{
-      alert('"'+existing.name+'" already exists in inventory.');
+      alert('SKU "'+existing.sku+'" ('+existing.name+') already exists in inventory.');
     }
     closeModal('addPart');
-    ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
+    fields.forEach(id=>document.getElementById(id).value='');
     await loadAll();return;
   }
   try{
     const newPart=await apiFetch('/api/parts','POST',{
-      name,
+      sku,name,
       category:document.getElementById('f-part-cat').value,
       unit:document.getElementById('f-part-unit').value,
       minQty:parseInt(document.getElementById('f-part-min').value)||0,
@@ -622,7 +627,7 @@ async function savePart(){
       await apiFetch('/api/transactions','POST',{type:'in',partId:newPart.id,qty,date:today(),ref:'Opening Stock',notes:'Opening balance'});
     }
     closeModal('addPart');
-    ['f-part-name','f-part-qty','f-part-min','f-part-desc'].forEach(id=>document.getElementById(id).value='');
+    fields.forEach(id=>document.getElementById(id).value='');
     await loadAll();
   }catch(e){alert(e.message);}
 }
@@ -680,6 +685,7 @@ function openEditPart(id){
   const p=state.parts.find(x=>x.id===id);
   if(!p)return;
   document.getElementById('f-edit-id').value=p.id;
+  document.getElementById('f-edit-sku').value=p.sku||'';
   document.getElementById('f-edit-name').value=p.name;
   populateCatSelect('f-edit-cat');
   document.getElementById('f-edit-cat').value=p.category;
@@ -691,11 +697,13 @@ function openEditPart(id){
 
 async function updatePart(){
   const id=parseInt(document.getElementById('f-edit-id').value);
+  const sku=document.getElementById('f-edit-sku').value.trim();
   const name=document.getElementById('f-edit-name').value.trim();
+  if(!sku)return alert('SKU / Part No. required');
   if(!name)return alert('Part name required');
   try{
     await apiFetch('/api/parts','PUT',{
-      id,name,
+      id,sku,name,
       category:document.getElementById('f-edit-cat').value,
       unit:document.getElementById('f-edit-unit').value,
       minQty:parseInt(document.getElementById('f-edit-min').value)||0,
@@ -760,14 +768,15 @@ function renderInventory(){
   const catF=(document.getElementById('inv-cat-filter')||{value:''}).value;
   const catSel=document.getElementById('inv-cat-filter');
   if(catSel){catSel.innerHTML='<option value="">All Categories</option>'+state.categories.map(c=>`<option value="${c}">${c}</option>`).join('');catSel.value=catF;}
-  const parts=state.parts.filter(p=>(!search||p.name.toLowerCase().includes(search)||p.category.toLowerCase().includes(search))&&(!catF||p.category===catF));
+  const parts=state.parts.filter(p=>(!search||p.name.toLowerCase().includes(search)||(p.sku||'').toLowerCase().includes(search)||p.category.toLowerCase().includes(search))&&(!catF||p.category===catF));
   const tb=document.getElementById('inv-table');
   if(!tb)return;
-  if(!parts.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No parts found</div></td></tr>';return;}
+  if(!parts.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No parts found</div></td></tr>';return;}
   tb.innerHTML=parts.map((p,i)=>{
     const s=stockStatus(p);
     return`<tr>
       <td style="color:#bbb;font-size:12px">${i+1}</td>
+      <td style="font-family:monospace;font-weight:600;color:#185FA5">${p.sku||'—'}</td>
       <td style="font-weight:600">${p.name}${p.desc?`<br><span style="font-size:11px;color:#bbb;font-weight:400">${p.desc}</span>`:''}</td>
       <td>${p.category}</td>
       <td style="color:#888">${p.unit}</td>
