@@ -74,6 +74,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .section-title{font-size:13px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:6px;color:#555}
 .qty-positive{color:#2d6a10;font-weight:600}
 .qty-negative{color:#993C1D;font-weight:600}
+.mod-switcher{display:inline-flex;background:#fff;border:1px solid #e8e8e6;border-radius:999px;padding:4px;gap:2px;margin-bottom:1.25rem}
+.mod-pill{padding:8px 18px;border-radius:999px;border:none;background:transparent;color:#555;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s}
+.mod-pill:hover{color:#1a1a1a}
+.mod-pill.active{background:#1a1a1a;color:#fff}
+.mod-pill i{font-size:15px}
 .sel-controls{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
@@ -113,6 +118,12 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
   </div>
 
   <div class="main">
+
+    <!-- MODULE SWITCHER -->
+    <div class="mod-switcher no-print">
+      <button class="mod-pill active" id="mod-machinery" onclick="switchModule('machinery')"><i class="ti ti-tools"></i> Machinery &amp; Electrical</button>
+      <button class="mod-pill" id="mod-consumables" onclick="switchModule('consumables')"><i class="ti ti-droplet"></i> Inks &amp; Consumables</button>
+    </div>
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
@@ -361,10 +372,23 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let state = {
+  module: localStorage.getItem('activeModule') || 'machinery',
   categories: [],
   parts: [],
   transactions: []
 };
+
+const MODULE_LABEL = {machinery:'Machinery & Electrical', consumables:'Inks & Consumables'};
+
+async function switchModule(m){
+  if(state.module===m)return;
+  state.module=m;
+  localStorage.setItem('activeModule',m);
+  document.getElementById('mod-machinery').classList.toggle('active',m==='machinery');
+  document.getElementById('mod-consumables').classList.toggle('active',m==='consumables');
+  const sub=document.querySelector('.logo-sub');if(sub)sub.textContent=MODULE_LABEL[m];
+  await loadAll();
+}
 
 let _activeSection = '';
 
@@ -383,14 +407,17 @@ async function apiFetch(url, method='GET', body=null){
 
 async function loadAll(){
   try{
+    const m='?module='+encodeURIComponent(state.module);
     const [categories,parts,transactions]=await Promise.all([
-      apiFetch('/api/categories'),
-      apiFetch('/api/parts'),
+      apiFetch('/api/categories'+m),
+      apiFetch('/api/parts'+m),
       apiFetch('/api/transactions')
     ]);
     state.categories=categories;
     state.parts=parts;
-    state.transactions=transactions;
+    // Only transactions for parts in this module
+    const partIds=new Set(parts.map(p=>p.id));
+    state.transactions=transactions.filter(t=>partIds.has(t.partId));
   }catch(e){console.error('Failed to load data:',e);}
   renderAll();
 }
@@ -427,7 +454,7 @@ function populateCatSelect(id){
       return;
     }
     try{
-      await apiFetch('/api/categories','POST',{name});
+      await apiFetch('/api/categories','POST',{name,module:state.module});
       await loadAll();
       populateCatSelect(id);
       document.getElementById(id).value=name;
@@ -639,6 +666,7 @@ async function savePart(){
   try{
     const newPart=await apiFetch('/api/parts','POST',{
       sku,name,
+      module:state.module,
       category:document.getElementById('f-part-cat').value,
       unit:document.getElementById('f-part-unit').value,
       minQty:parseInt(document.getElementById('f-part-min').value)||0,
@@ -695,7 +723,7 @@ async function saveCat(){
   if(!name)return alert('Category name required');
   if(state.categories.includes(name))return alert('Already exists');
   try{
-    await apiFetch('/api/categories','POST',{name});
+    await apiFetch('/api/categories','POST',{name,module:state.module});
     closeModal('addCat');
     document.getElementById('f-cat-name').value='';
     await loadAll();
@@ -757,7 +785,7 @@ async function deleteCat(name){
   if(state.parts.some(p=>p.category===name))return alert('Cannot delete: parts are using this category. Reassign them first.');
   if(!confirm('Delete category "'+name+'"?'))return;
   try{
-    await apiFetch('/api/categories?name='+encodeURIComponent(name),'DELETE');
+    await apiFetch('/api/categories?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
     await loadAll();
   }catch(e){alert(e.message);}
 }
@@ -878,6 +906,13 @@ function renderCategories(){
 }
 
 function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();}
+// Apply persisted module to UI before first load
+(function initModule(){
+  const m=state.module;
+  document.getElementById('mod-machinery').classList.toggle('active',m==='machinery');
+  document.getElementById('mod-consumables').classList.toggle('active',m==='consumables');
+  const sub=document.querySelector('.logo-sub');if(sub)sub.textContent=MODULE_LABEL[m];
+})();
 loadAll();
 </script>
 </body>
