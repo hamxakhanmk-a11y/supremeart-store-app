@@ -412,7 +412,28 @@ function openModal(id){
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')})});
 
-function populateCatSelect(id){document.getElementById(id).innerHTML=state.categories.map(c=>`<option>${c}</option>`).join('')}
+function populateCatSelect(id){
+  const el=document.getElementById(id);
+  const prev=el.value;
+  el.innerHTML=state.categories.map(c=>`<option>${c}</option>`).join('')+'<option value="__add__" style="font-style:italic;color:#185FA5">+ Add new category…</option>';
+  if(prev && state.categories.includes(prev)) el.value=prev;
+  el.onchange=async function(){
+    if(this.value!=='__add__')return;
+    const name=(prompt('New category name:')||'').trim();
+    if(!name){populateCatSelect(id);return;}
+    if(state.categories.some(c=>c.toLowerCase()===name.toLowerCase())){
+      alert('Category already exists');
+      this.value=state.categories.find(c=>c.toLowerCase()===name.toLowerCase());
+      return;
+    }
+    try{
+      await apiFetch('/api/categories','POST',{name});
+      await loadAll();
+      populateCatSelect(id);
+      document.getElementById(id).value=name;
+    }catch(e){alert(e.message);populateCatSelect(id);}
+  };
+}
 function populatePartSelect(id){document.getElementById(id).innerHTML=state.parts.map(p=>`<option value="${p.id}">${p.name} (${p.qty} ${p.unit})</option>`).join('')}
 
 function getPartName(id){const p=state.parts.find(x=>x.id===id);return p?p.name:'Unknown'}
