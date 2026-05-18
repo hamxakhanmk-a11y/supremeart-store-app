@@ -183,7 +183,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Added</th><th>Supplier / Ref</th><th>Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Added</th><th>Balance</th><th>Supplier / Ref</th><th>Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
           <tbody id="stockin-table"></tbody>
         </table>
       </div>
@@ -201,7 +201,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Issued</th><th>Issued To</th><th>Purpose</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Issued</th><th>Balance</th><th>Issued To</th><th>Purpose</th><th class="no-print" style="width:60px"></th></tr></thead>
           <tbody id="stockout-table"></tbody>
         </table>
       </div>
@@ -223,7 +223,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Issued To / Supplier</th><th>Purpose / Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Balance</th><th>Issued To / Supplier</th><th>Purpose / Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
           <tbody id="issuance-table"></tbody>
         </table>
       </div>
@@ -499,6 +499,7 @@ async function loadAll(){
     const partIds=new Set(parts.map(p=>p.id));
     state.transactions=transactions.filter(t=>partIds.has(t.partId));
   }catch(e){console.error('Failed to load data:',e);}
+  window._balCache=null;
   renderAll();
 }
 
@@ -602,9 +603,9 @@ function getSectionData(sec){
 
 function getHeaders(sec){
   if(sec==='inventory') return['#','SKU / Part No.','Part Name','Category','Machine','Unit','Qty on Hand','Min Qty','Status'];
-  if(sec==='stockin')   return['#','Date','Part Name','Category','Qty Added','Supplier / Ref','Notes'];
-  if(sec==='stockout')  return['#','Date','Part Name','Category','Qty Issued','Issued To','Purpose'];
-  if(sec==='issuance')  return['#','Date','Part Name','Type','Qty','Issued To / Supplier','Purpose / Notes'];
+  if(sec==='stockin')   return['#','Date','Part Name','Category','Qty Added','Balance','Supplier / Ref','Notes'];
+  if(sec==='stockout')  return['#','Date','Part Name','Category','Qty Issued','Balance','Issued To','Purpose'];
+  if(sec==='issuance')  return['#','Date','Part Name','Type','Qty','Balance','Issued To / Supplier','Purpose / Notes'];
   return[];
 }
 
@@ -613,9 +614,10 @@ function rowCells(sec,item,i){
     const s=stockStatus(item);
     return[i+1,item.sku||'—',item.name,item.category,item.machine||'—',item.unit,item.qty,item.minQty,s.label];
   }
-  if(sec==='stockin')  return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'+'+item.qty+' '+getPartUnit(item.partId),item.ref||'—',item.notes||'—'];
-  if(sec==='stockout') return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'-'+item.qty+' '+getPartUnit(item.partId),item.issuedTo||'—',item.purpose||'—'];
-  if(sec==='issuance') return[i+1,fmtDate(item.date),getPartName(item.partId),item.type==='in'?'Stock In':'Issue',(item.type==='in'?'+':'-')+item.qty+' '+getPartUnit(item.partId),item.type==='in'?(item.ref||'—'):(item.issuedTo||'—'),item.type==='in'?(item.notes||'—'):(item.purpose||'—')];
+  const bal=(window._balCache=window._balCache||computeBalances());
+  if(sec==='stockin')  return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'+'+item.qty+' '+getPartUnit(item.partId),(bal[item.id]??'—')+' '+getPartUnit(item.partId),item.ref||'—',item.notes||'—'];
+  if(sec==='stockout') return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'-'+item.qty+' '+getPartUnit(item.partId),(bal[item.id]??'—')+' '+getPartUnit(item.partId),item.issuedTo||'—',item.purpose||'—'];
+  if(sec==='issuance') return[i+1,fmtDate(item.date),getPartName(item.partId),item.type==='in'?'Stock In':'Issue',(item.type==='in'?'+':'-')+item.qty+' '+getPartUnit(item.partId),(bal[item.id]??'—')+' '+getPartUnit(item.partId),item.type==='in'?(item.ref||'—'):(item.issuedTo||'—'),item.type==='in'?(item.notes||'—'):(item.purpose||'—')];
   return[];
 }
 
@@ -1075,17 +1077,33 @@ function renderInventory(){
   }).join('');
 }
 
+// Compute running balance per transaction by part. Returns {txnId: balanceAfter}.
+// Sorted by date asc then id asc so older entries accumulate first.
+function computeBalances(){
+  const byPart={};
+  state.transactions.forEach(t=>{(byPart[t.partId]=byPart[t.partId]||[]).push(t)});
+  const out={};
+  Object.keys(byPart).forEach(pid=>{
+    const list=byPart[pid].slice().sort((a,b)=>(a.date<b.date?-1:a.date>b.date?1:a.id-b.id));
+    let bal=0;
+    list.forEach(t=>{bal+=t.type==='in'?t.qty:-t.qty;out[t.id]=bal;});
+  });
+  return out;
+}
+
 function renderStockIn(){
   const txns=[...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id);
+  const bal=computeBalances();
   const tb=document.getElementById('stockin-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-file-off"></i>No stock in records</div></td></tr>';return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-file-off"></i>No stock in records</div></td></tr>';return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
     <td style="font-weight:600">${getPartName(t.partId)}</td>
     <td>${getPartCat(t.partId)}</td>
     <td class="qty-positive">+${t.qty} ${getPartUnit(t.partId)}</td>
+    <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.ref||'—'}</td>
     <td style="color:#888">${t.notes||'—'}</td>
     <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
@@ -1094,15 +1112,17 @@ function renderStockIn(){
 
 function renderStockOut(){
   const txns=[...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id);
+  const bal=computeBalances();
   const tb=document.getElementById('stockout-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-file-off"></i>No stock out records</div></td></tr>';return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-file-off"></i>No stock out records</div></td></tr>';return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
     <td style="font-weight:600">${getPartName(t.partId)}</td>
     <td>${getPartCat(t.partId)}</td>
     <td class="qty-negative">−${t.qty} ${getPartUnit(t.partId)}</td>
+    <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.issuedTo||'—'}</td>
     <td style="color:#888">${t.purpose||'—'}</td>
     <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
@@ -1116,15 +1136,17 @@ function renderIssuance(){
     const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||(t.issuedTo+t.ref+t.purpose).toLowerCase().includes(search);
     return ms&&(!dateF||t.date===dateF);
   });
+  const bal=computeBalances();
   const tb=document.getElementById('issuance-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
     <td style="font-weight:600">${getPartName(t.partId)}</td>
     <td><span class="badge badge-${t.type}">${t.type==='in'?'Stock In':'Issue'}</span></td>
     <td class="${t.type==='in'?'qty-positive':'qty-negative'}">${t.type==='in'?'+':'−'}${t.qty} ${getPartUnit(t.partId)}</td>
+    <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td>
     <td style="color:#888">${t.type==='in'?(t.notes||'—'):(t.purpose||'—')}</td>
     <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
