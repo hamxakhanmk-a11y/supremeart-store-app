@@ -1,9 +1,8 @@
-const { sql, ensureTables, parseBody, normalizeModule, purgeOldTrash } = require('../lib/db');
+const { sql, ensureTables, parseBody, normalizeModule } = require('../lib/db');
 
 module.exports = async (req, res) => {
   try {
     await ensureTables();
-    await purgeOldTrash();
 
     if (req.method === 'GET') {
       const mod = normalizeModule(req.query.module);
