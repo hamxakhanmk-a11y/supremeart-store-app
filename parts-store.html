@@ -802,6 +802,9 @@ function doExport(){
 }
 
 // ---- CRUD ----
+// Local-state refresh: re-render without hitting the network.
+function refresh(){window._balCache=null;renderAll();}
+
 async function savePart(){
   const sku=document.getElementById('f-part-sku').value.trim();
   const name=document.getElementById('f-part-name').value.trim();
@@ -812,12 +815,15 @@ async function savePart(){
   async function mergeIntoExisting(existing){
     if(qty>0){
       try{
-        await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added (matched by SKU)'});
+        const txn=await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added (matched by SKU)'});
+        // Local patch only if the existing part is in our current module's loaded list
+        const p=state.parts.find(x=>x.id===existing.id);
+        if(p){p.qty+=qty;state.transactions.unshift(txn);}
       }catch(e){return alert(e.message);}
     }
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
-    await loadAll();
+    refresh();
   }
 
   // Only check for SKU duplicates if an SKU was actually entered
@@ -839,12 +845,15 @@ async function savePart(){
       minQty:parseInt(document.getElementById('f-part-min').value)||0,
       desc:document.getElementById('f-part-desc').value.trim()
     });
+    state.parts.push(newPart);
     if(qty>0){
-      await apiFetch('/api/transactions','POST',{type:'in',partId:newPart.id,qty,date:today(),ref:'Opening Stock',notes:'Opening balance'});
+      const txn=await apiFetch('/api/transactions','POST',{type:'in',partId:newPart.id,qty,date:today(),ref:'Opening Stock',notes:'Opening balance'});
+      newPart.qty+=qty;
+      state.transactions.unshift(txn);
     }
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
-    await loadAll();
+    refresh();
   }catch(e){
     // Server says this SKU already exists (likely in the OTHER module)
     if(e.status===409 && e.data && e.data.existing){
@@ -874,14 +883,17 @@ async function saveStockIn(){
   if(!qty||qty<1)return alert('Enter a valid quantity');
   if(!date)return alert('Date is required');
   try{
-    await apiFetch('/api/transactions','POST',{
+    const txn=await apiFetch('/api/transactions','POST',{
       type:'in',partId,qty,date,
       ref:document.getElementById('f-in-supplier').value.trim(),
       notes:document.getElementById('f-in-notes').value.trim()
     });
+    const p=state.parts.find(x=>x.id===partId);
+    if(p)p.qty+=qty;
+    state.transactions.unshift(txn);
     closeModal('addIn');
     ['f-in-qty','f-in-supplier','f-in-notes'].forEach(id=>document.getElementById(id).value='');
-    await loadAll();
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -894,13 +906,16 @@ async function saveStockOut(){
   if(!date)return alert('Date is required');
   if(!issuedTo)return alert('Issued To is required');
   try{
-    await apiFetch('/api/transactions','POST',{
+    const txn=await apiFetch('/api/transactions','POST',{
       type:'out',partId,qty,date,issuedTo,
       purpose:document.getElementById('f-out-purpose').value.trim()
     });
+    const p=state.parts.find(x=>x.id===partId);
+    if(p)p.qty-=qty;
+    state.transactions.unshift(txn);
     closeModal('addOut');
     ['f-out-qty','f-out-issued','f-out-purpose'].forEach(id=>document.getElementById(id).value='');
-    await loadAll();
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -910,9 +925,10 @@ async function saveCat(){
   if(state.categories.includes(name))return alert('Already exists');
   try{
     await apiFetch('/api/categories','POST',{name,module:state.module});
+    state.categories.push(name);state.categories.sort();
     closeModal('addCat');
     document.getElementById('f-cat-name').value='';
-    await loadAll();
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -922,9 +938,10 @@ async function saveMachine(){
   if(state.machines.some(m=>m.toLowerCase()===name.toLowerCase()))return alert('Machine already exists');
   try{
     await apiFetch('/api/machines','POST',{name,module:state.module});
+    state.machines.push(name);state.machines.sort();
     closeModal('addMachine');
     document.getElementById('f-machine-name').value='';
-    await loadAll();
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -933,7 +950,8 @@ async function deleteMachine(name){
   if(!confirm('Delete machine "'+name+'"?'))return;
   try{
     await apiFetch('/api/machines?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
-    await loadAll();
+    state.machines=state.machines.filter(m=>m!==name);
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -962,7 +980,7 @@ async function updatePart(){
   try{
     const qtyRaw=document.getElementById('f-edit-qty').value;
     const qty=qtyRaw===''?undefined:Math.max(0,parseInt(qtyRaw)||0);
-    await apiFetch('/api/parts','PUT',{
+    const payload={
       id,sku,name,
       category:document.getElementById('f-edit-cat').value,
       machine:document.getElementById('f-edit-machine').value,
@@ -970,9 +988,17 @@ async function updatePart(){
       qty,
       minQty:parseInt(document.getElementById('f-edit-min').value)||0,
       desc:document.getElementById('f-edit-desc').value.trim()
-    });
+    };
+    await apiFetch('/api/parts','PUT',payload);
+    // Patch the matching part locally
+    const p=state.parts.find(x=>x.id===id);
+    if(p){
+      p.sku=sku||null;p.name=name;p.category=payload.category;p.machine=payload.machine;
+      p.unit=payload.unit;p.minQty=payload.minQty;p.desc=payload.desc;
+      if(qty!==undefined)p.qty=qty;
+    }
     closeModal('editPart');
-    await loadAll();
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -980,13 +1006,24 @@ async function deletePart(id){
   if(!confirm('Move this part to Trash?\n\nIt will be permanently deleted after 7 days. You can restore it from the Trash page before then.'))return;
   try{
     await apiFetch('/api/parts?id='+id,'DELETE');
-    await loadAll();
+    // Move it locally to trash
+    const idx=state.parts.findIndex(p=>p.id===id);
+    if(idx>=0){
+      const p=state.parts.splice(idx,1)[0];
+      const now=new Date();
+      const purge=new Date(now.getTime()+7*86400000);
+      state.trash.unshift({...p,deletedAt:now.toISOString(),purgeAt:purge.toISOString()});
+      // Hide this part's transactions from the active log (server already excludes them)
+      state.transactions=state.transactions.filter(t=>t.partId!==id);
+    }
+    refresh();
   }catch(e){alert(e.message);}
 }
 
 async function restoreTrashPart(id){
   try{
     await apiFetch('/api/trash','POST',{id});
+    // Full reload here — we need the part's transactions back, which require a server fetch
     await loadAll();
   }catch(e){alert(e.message);}
 }
@@ -995,7 +1032,8 @@ async function purgeTrashPart(id){
   if(!confirm('Permanently delete this part and all its transaction records? This cannot be undone.'))return;
   try{
     await apiFetch('/api/trash?id='+id,'DELETE');
-    await loadAll();
+    state.trash=state.trash.filter(p=>p.id!==id);
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -1005,7 +1043,11 @@ async function deleteTxn(id){
   if(!confirm('Delete this '+(t.type==='in'?'stock in':'stock out')+' record?\nThis will reverse the qty change.'))return;
   try{
     await apiFetch('/api/transactions?id='+id,'DELETE');
-    await loadAll();
+    // Reverse qty locally
+    const p=state.parts.find(x=>x.id===t.partId);
+    if(p)p.qty+=t.type==='in'?-t.qty:t.qty;
+    state.transactions=state.transactions.filter(x=>x.id!==id);
+    refresh();
   }catch(e){alert(e.message);}
 }
 
@@ -1014,7 +1056,8 @@ async function deleteCat(name){
   if(!confirm('Delete category "'+name+'"?'))return;
   try{
     await apiFetch('/api/categories?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
-    await loadAll();
+    state.categories=state.categories.filter(c=>c!==name);
+    refresh();
   }catch(e){alert(e.message);}
 }
 
