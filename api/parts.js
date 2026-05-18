@@ -63,19 +63,33 @@ module.exports = async (req, res) => {
 
     if (req.method === 'PUT') {
       const body = await parseBody(req);
-      const { id, sku, name, category, machine, unit, minQty, desc } = body;
+      const { id, sku, name, category, machine, unit, qty, minQty, desc } = body;
       if (!id)                   return res.status(400).json({ error: 'ID required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       const skuTrim = (sku || '').trim();
       const skuVal = skuTrim || null;
+      const qtyVal = (qty === undefined || qty === null || qty === '')
+        ? null
+        : Math.max(0, parseInt(qty) || 0);
       try {
-        await sql`
-          UPDATE parts
-          SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
-              machine = ${machine || ''},
-              unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
-          WHERE id = ${id}
-        `;
+        if (qtyVal === null) {
+          await sql`
+            UPDATE parts
+            SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+                machine = ${machine || ''},
+                unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
+            WHERE id = ${id}
+          `;
+        } else {
+          await sql`
+            UPDATE parts
+            SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+                machine = ${machine || ''},
+                unit = ${unit}, qty = ${qtyVal},
+                min_qty = ${minQty || 0}, description = ${desc || ''}
+            WHERE id = ${id}
+          `;
+        }
         return res.json({ ok: true });
       } catch (e) {
         if (String(e.message).includes('parts_sku') || e.code === '23505') {

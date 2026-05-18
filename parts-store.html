@@ -364,7 +364,10 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="form-group"><label class="form-label">Unit of Measure</label>
       <select id="f-edit-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
     </div>
-    <div class="form-group"><label class="form-label">Min Qty (alert threshold)</label><input id="f-edit-min" type="number" min="0"></div>
+    <div class="two-col">
+      <div class="form-group"><label class="form-label">Qty on Hand</label><input id="f-edit-qty" type="number" min="0"></div>
+      <div class="form-group"><label class="form-label">Min Qty (alert threshold)</label><input id="f-edit-min" type="number" min="0"></div>
+    </div>
     <div class="form-group"><label class="form-label">Description / Notes</label><input id="f-edit-desc"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal('editPart')">Cancel</button>
@@ -943,6 +946,7 @@ function openEditPart(id){
   populateMachineSelect('f-edit-machine');
   document.getElementById('f-edit-machine').value=p.machine||'';
   document.getElementById('f-edit-unit').value=p.unit;
+  document.getElementById('f-edit-qty').value=p.qty;
   document.getElementById('f-edit-min').value=p.minQty;
   document.getElementById('f-edit-desc').value=p.desc||'';
   openModal('editPart');
@@ -954,11 +958,14 @@ async function updatePart(){
   const name=document.getElementById('f-edit-name').value.trim();
   if(!name)return alert('Part name required');
   try{
+    const qtyRaw=document.getElementById('f-edit-qty').value;
+    const qty=qtyRaw===''?undefined:Math.max(0,parseInt(qtyRaw)||0);
     await apiFetch('/api/parts','PUT',{
       id,sku,name,
       category:document.getElementById('f-edit-cat').value,
       machine:document.getElementById('f-edit-machine').value,
       unit:document.getElementById('f-edit-unit').value,
+      qty,
       minQty:parseInt(document.getElementById('f-edit-min').value)||0,
       desc:document.getElementById('f-edit-desc').value.trim()
     });
