@@ -26,7 +26,10 @@ module.exports = async (req, res) => {
       const name = req.query.name;
       const mod = normalizeModule(req.query.module);
       if (!name) return res.status(400).json({ error: 'Name required' });
-      const used = await sql`SELECT id FROM parts WHERE machine = ${name} AND module = ${mod} AND deleted_at IS NULL LIMIT 1`;
+      // machine is a comma-separated list; match exact name within it
+      // (?: ^ | ,\s* ) name (?: \s*,|$ )
+      const pattern = '(^|,\\s*)' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\s*,|$)';
+      const used = await sql`SELECT id FROM parts WHERE machine ~ ${pattern} AND module = ${mod} AND deleted_at IS NULL LIMIT 1`;
       if (used.length > 0) {
         return res.status(400).json({ error: 'Cannot delete: parts are assigned to this machine. Reassign them first.' });
       }

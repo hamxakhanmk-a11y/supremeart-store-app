@@ -84,6 +84,15 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .preset-row .preset-label{font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-right:4px}
 .preset-btn{padding:5px 11px;border-radius:999px;border:1px solid #d0d0cc;background:#fff;color:#333;font-size:12px;cursor:pointer;font-family:inherit;font-weight:500;transition:all 0.15s}
 .preset-btn:hover{background:#185FA5;color:#fff;border-color:#185FA5}
+.multi-box{border:1px solid #d8d8d4;border-radius:8px;padding:8px 10px;max-height:140px;overflow-y:auto;background:#fff}
+.multi-box .multi-row{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;cursor:pointer;border-radius:4px}
+.multi-box .multi-row:hover{background:#f5f7fa}
+.multi-box .multi-row input{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#185FA5;margin:0}
+.multi-box .multi-row label{cursor:pointer;flex:1}
+.multi-empty{color:#aaa;font-size:12px;text-align:center;padding:8px 0}
+.multi-add{margin-top:6px;font-size:12px;color:#185FA5;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500}
+.multi-add:hover{text-decoration:underline}
+.machine-chip{display:inline-block;padding:2px 8px;margin:1px 2px 1px 0;border-radius:12px;background:#eef2f8;color:#185FA5;font-size:11px;font-weight:500}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -281,7 +290,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-part-sku" placeholder="e.g. BRG-6204"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-part-name" placeholder="e.g. Bearing 6204"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-part-cat"></select></div>
-    <div class="form-group"><label class="form-label">Machine / Equipment</label><select id="f-part-machine"></select></div>
+    <div class="form-group">
+      <label class="form-label">Machine / Equipment <span style="color:#aaa;font-weight:400;text-transform:none">(select one or more)</span></label>
+      <div class="multi-box" id="f-part-machine"></div>
+      <span class="multi-add" onclick="addMachineInline('f-part-machine')"><i class="ti ti-plus"></i> Add new machine</span>
+    </div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
       <select id="f-part-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
     </div>
@@ -360,7 +373,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-edit-sku"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-edit-name"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-edit-cat"></select></div>
-    <div class="form-group"><label class="form-label">Machine / Equipment</label><select id="f-edit-machine"></select></div>
+    <div class="form-group">
+      <label class="form-label">Machine / Equipment <span style="color:#aaa;font-weight:400;text-transform:none">(select one or more)</span></label>
+      <div class="multi-box" id="f-edit-machine"></div>
+      <span class="multi-add" onclick="addMachineInline('f-edit-machine')"><i class="ti ti-plus"></i> Add new machine</span>
+    </div>
     <div class="form-group"><label class="form-label">Unit of Measure</label>
       <select id="f-edit-unit"><option>pcs</option><option>kg</option><option>liters</option><option>meters</option><option>rolls</option><option>boxes</option><option>sets</option><option>pairs</option></select>
     </div>
@@ -514,7 +531,7 @@ async function showPage(id,el){
 function openModal(id){
   if(id==='addIn'){document.getElementById('f-in-date').value=today();populatePartSelect('f-in-part')}
   if(id==='addOut'){document.getElementById('f-out-date').value=today();populatePartSelect('f-out-part')}
-  if(id==='addPart'){populateCatSelect('f-part-cat');populateMachineSelect('f-part-machine')}
+  if(id==='addPart'){populateCatSelect('f-part-cat');populateMachineSelect('f-part-machine','')}
   document.getElementById('modal-'+id).classList.add('open');
 }
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
@@ -542,27 +559,63 @@ function populateCatSelect(id){
     }catch(e){alert(e.message);populateCatSelect(id);}
   };
 }
-function populateMachineSelect(id){
+// Multi-select machine list rendered as a scrollable checkbox box.
+// `selectedCsv` is a comma-separated string of currently-selected machine names.
+function populateMachineSelect(id, selectedCsv){
   const el=document.getElementById(id);
-  const prev=el.value;
-  el.innerHTML='<option value="">— None —</option>'+state.machines.map(m=>`<option>${m}</option>`).join('')+'<option value="__add__" style="font-style:italic;color:#185FA5">+ Add new machine…</option>';
-  if(prev && state.machines.includes(prev)) el.value=prev;
-  el.onchange=async function(){
-    if(this.value!=='__add__')return;
-    const name=(prompt('New machine name:')||'').trim();
-    if(!name){populateMachineSelect(id);return;}
-    if(state.machines.some(c=>c.toLowerCase()===name.toLowerCase())){
-      alert('Machine already exists');
-      this.value=state.machines.find(c=>c.toLowerCase()===name.toLowerCase());
-      return;
+  const current=el?getMachineMultiValue(id):'';
+  const csv=(selectedCsv!==undefined?selectedCsv:current)||'';
+  const selected=parseMachines(csv);
+  const selSet=new Set(selected.map(s=>s.toLowerCase()));
+  // Show all known machines + any selected ones that aren't in state (legacy data)
+  const all=Array.from(new Set([...state.machines, ...selected]));
+  all.sort((a,b)=>a.localeCompare(b));
+  if(!all.length){
+    el.innerHTML='<div class="multi-empty">No machines yet — click "Add new machine" below</div>';
+    return;
+  }
+  el.innerHTML=all.map(m=>{
+    const checked=selSet.has(m.toLowerCase())?'checked':'';
+    const escId='mch-'+id+'-'+m.replace(/[^a-z0-9]/gi,'_');
+    return `<div class="multi-row"><input type="checkbox" id="${escId}" data-name="${m.replace(/"/g,'&quot;')}" ${checked}><label for="${escId}">${m}</label></div>`;
+  }).join('');
+}
+
+function getMachineMultiValue(id){
+  const el=document.getElementById(id);
+  if(!el)return '';
+  const names=[];
+  el.querySelectorAll('input[type=checkbox]:checked').forEach(c=>names.push(c.dataset.name));
+  return names.join(', ');
+}
+
+function parseMachines(s){
+  if(!s)return [];
+  return s.split(',').map(x=>x.trim()).filter(Boolean);
+}
+
+async function addMachineInline(targetId){
+  const name=(prompt('New machine name:')||'').trim();
+  if(!name)return;
+  if(state.machines.some(m=>m.toLowerCase()===name.toLowerCase())){
+    alert('Machine already exists');
+    // Auto-tick it for convenience
+    const existing=state.machines.find(m=>m.toLowerCase()===name.toLowerCase());
+    const current=parseMachines(getMachineMultiValue(targetId));
+    if(!current.some(c=>c.toLowerCase()===existing.toLowerCase())){
+      current.push(existing);
+      populateMachineSelect(targetId,current.join(', '));
     }
-    try{
-      await apiFetch('/api/machines','POST',{name,module:state.module});
-      await loadAll();
-      populateMachineSelect(id);
-      document.getElementById(id).value=name;
-    }catch(e){alert(e.message);populateMachineSelect(id);}
-  };
+    return;
+  }
+  try{
+    await apiFetch('/api/machines','POST',{name,module:state.module});
+    state.machines.push(name);state.machines.sort();
+    // Pre-tick the new machine
+    const current=parseMachines(getMachineMultiValue(targetId));
+    current.push(name);
+    populateMachineSelect(targetId,current.join(', '));
+  }catch(e){alert(e.message);}
 }
 function populatePartSelect(id){document.getElementById(id).innerHTML=state.parts.map(p=>`<option value="${p.id}">${p.name} (${p.qty} ${p.unit})</option>`).join('')}
 
@@ -582,9 +635,10 @@ function getSectionData(sec){
     const c=(document.getElementById('inv-cat-filter')||{value:''}).value;
     const m=(document.getElementById('inv-machine-filter')||{value:''}).value;
     return state.parts.filter(p=>{
-      const txt=!s||p.name.toLowerCase().includes(s)||(p.sku||'').toLowerCase().includes(s)||p.category.toLowerCase().includes(s)||(p.machine||'').toLowerCase().includes(s);
+      const machList=parseMachines(p.machine);
+      const txt=!s||p.name.toLowerCase().includes(s)||(p.sku||'').toLowerCase().includes(s)||p.category.toLowerCase().includes(s)||machList.some(x=>x.toLowerCase().includes(s));
       const cat=!c||p.category===c;
-      const mach=!m||(m==='__none__'?!p.machine:p.machine===m);
+      const mach=!m||(m==='__none__'?machList.length===0:machList.includes(m));
       return txt&&cat&&mach;
     });
   }
@@ -612,7 +666,7 @@ function getHeaders(sec){
 function rowCells(sec,item,i){
   if(sec==='inventory'){
     const s=stockStatus(item);
-    return[i+1,item.sku||'—',item.name,item.category,item.machine||'—',item.unit,item.qty,item.minQty,s.label];
+    return[i+1,item.sku||'—',item.name,item.category,parseMachines(item.machine).join(', ')||'—',item.unit,item.qty,item.minQty,s.label];
   }
   const bal=(window._balCache=window._balCache||computeBalances());
   if(sec==='stockin')  return[i+1,fmtDate(item.date),getPartName(item.partId),getPartCat(item.partId),'+'+item.qty+' '+getPartUnit(item.partId),(bal[item.id]??'—')+' '+getPartUnit(item.partId),item.ref||'—',item.notes||'—'];
@@ -840,7 +894,7 @@ async function savePart(){
       sku,name,
       module:state.module,
       category:document.getElementById('f-part-cat').value,
-      machine:document.getElementById('f-part-machine').value,
+      machine:getMachineMultiValue('f-part-machine'),
       unit:document.getElementById('f-part-unit').value,
       minQty:parseInt(document.getElementById('f-part-min').value)||0,
       desc:document.getElementById('f-part-desc').value.trim()
@@ -946,7 +1000,7 @@ async function saveMachine(){
 }
 
 async function deleteMachine(name){
-  if(state.parts.some(p=>p.machine===name))return alert('Cannot delete: parts are assigned to this machine. Reassign them first.');
+  if(state.parts.some(p=>parseMachines(p.machine).includes(name)))return alert('Cannot delete: parts are assigned to this machine. Reassign them first.');
   if(!confirm('Delete machine "'+name+'"?'))return;
   try{
     await apiFetch('/api/machines?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
@@ -963,8 +1017,7 @@ function openEditPart(id){
   document.getElementById('f-edit-name').value=p.name;
   populateCatSelect('f-edit-cat');
   document.getElementById('f-edit-cat').value=p.category;
-  populateMachineSelect('f-edit-machine');
-  document.getElementById('f-edit-machine').value=p.machine||'';
+  populateMachineSelect('f-edit-machine',p.machine||'');
   document.getElementById('f-edit-unit').value=p.unit;
   document.getElementById('f-edit-qty').value=p.qty;
   document.getElementById('f-edit-min').value=p.minQty;
@@ -983,7 +1036,7 @@ async function updatePart(){
     const payload={
       id,sku,name,
       category:document.getElementById('f-edit-cat').value,
-      machine:document.getElementById('f-edit-machine').value,
+      machine:getMachineMultiValue('f-edit-machine'),
       unit:document.getElementById('f-edit-unit').value,
       qty,
       minQty:parseInt(document.getElementById('f-edit-min').value)||0,
@@ -1092,9 +1145,10 @@ function renderInventory(){
   const machSel=document.getElementById('inv-machine-filter');
   if(machSel){machSel.innerHTML='<option value="">All Machines</option><option value="__none__">— No machine —</option>'+state.machines.map(m=>`<option value="${m}">${m}</option>`).join('');machSel.value=machF;}
   const parts=state.parts.filter(p=>{
-    const txt=!search||p.name.toLowerCase().includes(search)||(p.sku||'').toLowerCase().includes(search)||p.category.toLowerCase().includes(search)||(p.machine||'').toLowerCase().includes(search);
+    const machList=parseMachines(p.machine);
+    const txt=!search||p.name.toLowerCase().includes(search)||(p.sku||'').toLowerCase().includes(search)||p.category.toLowerCase().includes(search)||machList.some(m=>m.toLowerCase().includes(search));
     const cat=!catF||p.category===catF;
-    const mach=!machF||(machF==='__none__'?!p.machine:p.machine===machF);
+    const mach=!machF||(machF==='__none__'?machList.length===0:machList.includes(machF));
     return txt&&cat&&mach;
   });
   const tb=document.getElementById('inv-table');
@@ -1107,7 +1161,7 @@ function renderInventory(){
       <td style="font-family:monospace;font-weight:600;color:#185FA5">${p.sku||'—'}</td>
       <td style="font-weight:600">${p.name}${p.desc?`<br><span style="font-size:11px;color:#bbb;font-weight:400">${p.desc}</span>`:''}</td>
       <td>${p.category}</td>
-      <td style="color:#555">${p.machine||'—'}</td>
+      <td style="color:#555">${(()=>{const list=parseMachines(p.machine);return list.length?list.map(m=>`<span class="machine-chip">${m}</span>`).join(' '):'—'})()}</td>
       <td style="color:#888">${p.unit}</td>
       <td style="font-weight:700;font-size:15px">${p.qty}</td>
       <td style="color:#888">${p.minQty}</td>
@@ -1210,7 +1264,7 @@ function renderMachines(){
   if(!tb)return;
   if(!state.machines.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-building-factory-2"></i>No machines added yet</div></td></tr>';return;}
   tb.innerHTML=state.machines.map(m=>{
-    const count=state.parts.filter(p=>p.machine===m).length;
+    const count=state.parts.filter(p=>parseMachines(p.machine).includes(m)).length;
     return`<tr><td style="font-weight:600">${m}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteMachine('${m.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button></td></tr>`;
   }).join('');
 }
