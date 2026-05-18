@@ -42,16 +42,23 @@ module.exports = async (req, res) => {
           });
         }
       }
-      const rows = await sql`
-        INSERT INTO parts (sku, name, category, machine, module, unit, qty, min_qty, description)
-        VALUES (
-          ${skuVal}, ${name.trim()}, ${category}, ${machine || ''}, ${mod}, ${unit || 'pcs'},
-          0, ${minQty || 0}, ${desc || ''}
-        )
-        RETURNING id, sku, name, category, machine, module, unit, qty,
-                  min_qty AS "minQty", description AS "desc"
-      `;
-      return res.json(rows[0]);
+      try {
+        const rows = await sql`
+          INSERT INTO parts (sku, name, category, machine, module, unit, qty, min_qty, description)
+          VALUES (
+            ${skuVal}, ${name.trim()}, ${category}, ${machine || ''}, ${mod}, ${unit || 'pcs'},
+            0, ${minQty || 0}, ${desc || ''}
+          )
+          RETURNING id, sku, name, category, machine, module, unit, qty,
+                    min_qty AS "minQty", description AS "desc"
+        `;
+        return res.json(rows[0]);
+      } catch (e) {
+        if (String(e.message).includes('parts_sku') || e.code === '23505') {
+          return res.status(409).json({ error: 'SKU "' + skuVal + '" already exists' });
+        }
+        throw e;
+      }
     }
 
     if (req.method === 'PUT') {
@@ -71,7 +78,7 @@ module.exports = async (req, res) => {
         `;
         return res.json({ ok: true });
       } catch (e) {
-        if (String(e.message).includes('parts_sku_unique') || e.code === '23505') {
+        if (String(e.message).includes('parts_sku') || e.code === '23505') {
           return res.status(409).json({ error: 'SKU "' + skuTrim + '" already exists' });
         }
         throw e;
