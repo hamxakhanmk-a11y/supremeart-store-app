@@ -110,6 +110,9 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .combo-qty.low{color:#854F0B}.combo-qty.out{color:#A32D2D}
 .combo-empty{padding:18px;text-align:center;color:#aaa;font-size:12px}
 .bulk-info{font-size:12px;color:#888;font-weight:500}
+.btn-danger-strong{background:#A32D2D;color:#fff;border-color:#A32D2D;font-weight:600;box-shadow:0 0 0 1px #A32D2D inset}
+.btn-danger-strong:hover{background:#7d1f1f;border-color:#7d1f1f}
+.btn-danger-strong i{font-size:14px}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -216,7 +219,8 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="in-date-to" onchange="renderStockIn()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('in')">Clear</button>
         <span class="bulk-info" id="in-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in')"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-soft" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in',false)"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-strong" id="in-bulk-purge" style="display:none" onclick="bulkDeleteTxns('in',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -244,7 +248,8 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="out-date-to" onchange="renderStockOut()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('out')">Clear</button>
         <span class="bulk-info" id="out-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out')"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-soft" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out',false)"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-strong" id="out-bulk-purge" style="display:none" onclick="bulkDeleteTxns('out',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -271,7 +276,8 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="iss-date-to" onchange="renderIssuance()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('iss')">Clear</button>
         <span class="bulk-info" id="iss-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="iss-bulk-delete" style="display:none" onclick="bulkDeleteTxns('iss')"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-soft" id="iss-bulk-delete" style="display:none" onclick="bulkDeleteTxns('iss',false)"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-strong" id="iss-bulk-purge" style="display:none" onclick="bulkDeleteTxns('iss',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -1286,27 +1292,34 @@ function updateBulkInfo(kind){
   const total=document.querySelectorAll('.txn-chk-'+kind).length;
   const info=document.getElementById(kind+'-bulk-info');
   const btn=document.getElementById(kind+'-bulk-delete');
+  const purge=document.getElementById(kind+'-bulk-purge');
   if(info)info.textContent=checked?(checked+' of '+total+' selected'):'';
   if(btn)btn.style.display=checked?'inline-flex':'none';
+  if(purge)purge.style.display=checked?'inline-flex':'none';
   const all=document.getElementById(kind+'-chk-all');
   if(all)all.checked=total>0&&checked===total;
 }
 
-async function bulkDeleteTxns(kind){
+async function bulkDeleteTxns(kind,historyOnly){
   const ids=Array.from(document.querySelectorAll('.txn-chk-'+kind+':checked')).map(c=>parseInt(c.dataset.id));
   if(!ids.length)return;
-  const label=kind==='in'?'stock in':'stock out';
-  if(!confirm('Delete '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+'?\nThis will reverse their qty changes and cannot be undone.'))return;
+  const label=kind==='in'?'stock in':(kind==='out'?'stock out':'transaction');
+  const msg=historyOnly
+    ? '⚠ PERMANENTLY DELETE '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+' FROM HISTORY?\n\n• Current stock quantities WILL NOT be adjusted (use this for cleaning up old records where stock has already settled).\n• The records will be gone from Stock In / Out / Issuance views.\n• An entry is written to the Activity Log so you can see what was purged.\n\nThis cannot be undone. Continue?'
+    : 'Delete '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+'?\nThis will reverse their qty changes and cannot be undone.';
+  if(!confirm(msg))return;
   try{
-    await apiFetch('/api/transactions','DELETE',{ids});
-    // Reverse qty locally for each deleted txn
+    await apiFetch('/api/transactions','DELETE',{ids,historyOnly:!!historyOnly});
     const delSet=new Set(ids);
-    state.transactions.forEach(t=>{
-      if(delSet.has(t.id)){
-        const p=state.parts.find(x=>x.id===t.partId);
-        if(p)p.qty+=t.type==='in'?-t.qty:t.qty;
-      }
-    });
+    if(!historyOnly){
+      // Reverse qty locally for each deleted txn
+      state.transactions.forEach(t=>{
+        if(delSet.has(t.id)){
+          const p=state.parts.find(x=>x.id===t.partId);
+          if(p)p.qty+=t.type==='in'?-t.qty:t.qty;
+        }
+      });
+    }
     state.transactions=state.transactions.filter(t=>!delSet.has(t.id));
     refresh();
   }catch(e){alert(e.message);}
@@ -1532,8 +1545,8 @@ function renderActivity(){
   const items=state.activity||[];
   if(!items.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-history"></i>No activity yet</div></td></tr>';return;}
   const fmtTs=ts=>{if(!ts)return'';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
-  const actionLabel={txn_deleted:'Deleted Record',qty_edited:'Qty Edited'};
-  const actionCls={txn_deleted:'badge-critical',qty_edited:'badge-low'};
+  const actionLabel={txn_deleted:'Deleted Record',txn_purged:'Purged from History',qty_edited:'Qty Edited'};
+  const actionCls={txn_deleted:'badge-low',txn_purged:'badge-critical',qty_edited:'badge-low'};
   tb.innerHTML=items.map(a=>`<tr>
     <td style="color:#888;font-size:12px">${fmtTs(a.createdAt)}</td>
     <td><span class="badge ${actionCls[a.action]||'badge-ok'}">${actionLabel[a.action]||a.action}</span></td>

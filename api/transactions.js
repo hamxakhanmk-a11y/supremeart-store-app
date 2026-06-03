@@ -59,8 +59,8 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'DELETE') {
-      // Accept either ?id=123 (single) or body { ids: [...] } (bulk)
-      let ids;
+      // Accept either ?id=123 (single) or body { ids: [...], historyOnly?: bool } (bulk)
+      let ids, historyOnly = false;
       if (req.query.id) {
         const single = parseInt(req.query.id);
         if (!single) return res.status(400).json({ error: 'ID required' });
@@ -68,6 +68,7 @@ module.exports = async (req, res) => {
       } else {
         const body = await parseBody(req);
         if (Array.isArray(body.ids)) ids = body.ids.map(Number).filter(Boolean);
+        historyOnly = body.historyOnly === true;
       }
       if (!ids || !ids.length) return res.status(400).json({ error: 'ID(s) required' });
 
@@ -79,44 +80,48 @@ module.exports = async (req, res) => {
       `;
       if (!txns.length) return res.json({ ok: true, deleted: 0 });
 
-      // Net qty delta per part to apply (added to current qty)
-      const delta = {};
-      for (const t of txns) {
-        delta[t.partId] = (delta[t.partId] || 0) + (t.type === 'in' ? -t.qty : t.qty);
-      }
-
-      // Verify no part goes below zero
-      const partIds = Object.keys(delta).map(Number);
+      // Always fetch the affected parts (for log labels even in historyOnly mode)
+      const partIds = Array.from(new Set(txns.map(t => t.partId)));
       const parts = await sql`SELECT id, name, sku, unit, module, qty FROM parts WHERE id = ANY(${partIds})`;
       const partsMap = Object.fromEntries(parts.map(p => [p.id, p]));
-      for (const pid of partIds) {
-        const p = partsMap[pid];
-        if (p && p.qty + delta[pid] < 0) {
-          return res.status(400).json({
-            error: `Cannot delete: would make "${p.name}" go below zero (current ${p.qty}, net reversal ${delta[pid]}). Adjust stock first.`
-          });
+
+      if (!historyOnly) {
+        // Normal delete: reverse qty changes
+        const delta = {};
+        for (const t of txns) {
+          delta[t.partId] = (delta[t.partId] || 0) + (t.type === 'in' ? -t.qty : t.qty);
+        }
+        for (const pid of partIds) {
+          const p = partsMap[pid];
+          if (p && p.qty + delta[pid] < 0) {
+            return res.status(400).json({
+              error: `Cannot delete: would make "${p.name}" go below zero (current ${p.qty}, net reversal ${delta[pid]}). Adjust stock first or use 'Delete from History' to purge without reversing qty.`
+            });
+          }
+        }
+        for (const pid of partIds) {
+          if (delta[pid] !== 0) {
+            await sql`UPDATE parts SET qty = qty + ${delta[pid]} WHERE id = ${pid}`;
+          }
         }
       }
 
-      for (const pid of partIds) {
-        if (delta[pid] !== 0) {
-          await sql`UPDATE parts SET qty = qty + ${delta[pid]} WHERE id = ${pid}`;
-        }
-      }
       await sql`DELETE FROM transactions WHERE id = ANY(${ids})`;
 
       // Activity log: one entry per deleted txn
+      const action = historyOnly ? 'txn_purged' : 'txn_deleted';
       for (const t of txns) {
         const p = partsMap[t.partId] || {};
         const verb = t.type === 'in' ? 'Stock In' : 'Stock Out';
         const sign = t.type === 'in' ? '+' : '-';
         const who = t.type === 'in' ? (t.ref || '—') : (t.issuedTo || '—');
         const partLabel = (p.sku ? `[${p.sku}] ` : '') + (p.name || ('part #' + t.partId));
-        const summary = `Deleted ${verb}: ${sign}${t.qty} ${p.unit || ''} of "${partLabel}" on ${t.date} (${t.type === 'in' ? 'ref' : 'to'}: ${who})`;
+        const prefix = historyOnly ? 'Purged from history' : 'Deleted';
+        const summary = `${prefix} ${verb}: ${sign}${t.qty} ${p.unit || ''} of "${partLabel}" on ${t.date} (${t.type === 'in' ? 'ref' : 'to'}: ${who})`;
         await logActivity({
-          action: 'txn_deleted',
+          action,
           summary,
-          details: { ...t, partName: p.name, partSku: p.sku, partUnit: p.unit },
+          details: { ...t, partName: p.name, partSku: p.sku, partUnit: p.unit, historyOnly },
           module: p.module
         });
       }
