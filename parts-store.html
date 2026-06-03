@@ -209,8 +209,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="search-bar no-print">
         <input type="text" placeholder="Search by part, supplier, notes..." id="in-search" oninput="renderStockIn()">
-        <input type="date" id="in-date-filter" onchange="renderStockIn()" style="width:160px">
-        <button class="btn btn-sm" onclick="document.getElementById('in-search').value='';document.getElementById('in-date-filter').value='';renderStockIn()">Clear</button>
+        <span style="font-size:12px;color:#666">From</span>
+        <input type="date" id="in-date-from" onchange="renderStockIn()" style="width:150px">
+        <span style="font-size:12px;color:#666">To</span>
+        <input type="date" id="in-date-to" onchange="renderStockIn()" style="width:150px">
+        <button class="btn btn-sm" onclick="clearLogFilters('in')">Clear</button>
         <span class="bulk-info" id="in-bulk-info" style="margin-left:auto"></span>
         <button class="btn btn-sm btn-danger-soft" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in')"><i class="ti ti-trash"></i> Delete Selected</button>
       </div>
@@ -234,8 +237,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="search-bar no-print">
         <input type="text" placeholder="Search by part, issued to, purpose..." id="out-search" oninput="renderStockOut()">
-        <input type="date" id="out-date-filter" onchange="renderStockOut()" style="width:160px">
-        <button class="btn btn-sm" onclick="document.getElementById('out-search').value='';document.getElementById('out-date-filter').value='';renderStockOut()">Clear</button>
+        <span style="font-size:12px;color:#666">From</span>
+        <input type="date" id="out-date-from" onchange="renderStockOut()" style="width:150px">
+        <span style="font-size:12px;color:#666">To</span>
+        <input type="date" id="out-date-to" onchange="renderStockOut()" style="width:150px">
+        <button class="btn btn-sm" onclick="clearLogFilters('out')">Clear</button>
         <span class="bulk-info" id="out-bulk-info" style="margin-left:auto"></span>
         <button class="btn btn-sm btn-danger-soft" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out')"><i class="ti ti-trash"></i> Delete Selected</button>
       </div>
@@ -258,12 +264,17 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       </div>
       <div class="search-bar no-print">
         <input type="text" placeholder="Search by part, issued to..." id="iss-search" oninput="renderIssuance()">
-        <input type="date" id="iss-date-filter" onchange="renderIssuance()" style="width:160px">
-        <button class="btn btn-sm" onclick="document.getElementById('iss-date-filter').value='';renderIssuance()">Clear</button>
+        <span style="font-size:12px;color:#666">From</span>
+        <input type="date" id="iss-date-from" onchange="renderIssuance()" style="width:150px">
+        <span style="font-size:12px;color:#666">To</span>
+        <input type="date" id="iss-date-to" onchange="renderIssuance()" style="width:150px">
+        <button class="btn btn-sm" onclick="clearLogFilters('iss')">Clear</button>
+        <span class="bulk-info" id="iss-bulk-info" style="margin-left:auto"></span>
+        <button class="btn btn-sm btn-danger-soft" id="iss-bulk-delete" style="display:none" onclick="bulkDeleteTxns('iss')"><i class="ti ti-trash"></i> Delete Selected</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Balance</th><th>Issued To / Supplier</th><th>Purpose / Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <thead><tr><th class="no-print" style="width:32px"><input type="checkbox" id="iss-chk-all" onchange="toggleAllTxns('iss',this.checked)"></th><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Balance</th><th>Issued To / Supplier</th><th>Purpose / Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
           <tbody id="issuance-table"></tbody>
         </table>
       </div>
@@ -778,26 +789,29 @@ function getSectionData(sec){
   }
   if(sec==='stockin'){
     const s=(document.getElementById('in-search')||{value:''}).value.toLowerCase();
-    const d=(document.getElementById('in-date-filter')||{value:''}).value;
+    const dF=(document.getElementById('in-date-from')||{value:''}).value;
+    const dT=(document.getElementById('in-date-to')||{value:''}).value;
     return [...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id).filter(t=>{
       const ms=!s||getPartName(t.partId).toLowerCase().includes(s)||((t.ref||'')+' '+(t.notes||'')).toLowerCase().includes(s);
-      return ms&&(!d||t.date===d);
+      return ms&&inDateRange(t.date,dF,dT);
     });
   }
   if(sec==='stockout'){
     const s=(document.getElementById('out-search')||{value:''}).value.toLowerCase();
-    const d=(document.getElementById('out-date-filter')||{value:''}).value;
+    const dF=(document.getElementById('out-date-from')||{value:''}).value;
+    const dT=(document.getElementById('out-date-to')||{value:''}).value;
     return [...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id).filter(t=>{
       const ms=!s||getPartName(t.partId).toLowerCase().includes(s)||((t.issuedTo||'')+' '+(t.purpose||'')).toLowerCase().includes(s);
-      return ms&&(!d||t.date===d);
+      return ms&&inDateRange(t.date,dF,dT);
     });
   }
   if(sec==='issuance'){
     const s=(document.getElementById('iss-search')||{value:''}).value.toLowerCase();
-    const d=(document.getElementById('iss-date-filter')||{value:''}).value;
+    const dF=(document.getElementById('iss-date-from')||{value:''}).value;
+    const dT=(document.getElementById('iss-date-to')||{value:''}).value;
     return [...state.transactions].sort((a,b)=>b.id-a.id).filter(t=>{
       const ms=!s||getPartName(t.partId).toLowerCase().includes(s)||(t.issuedTo+t.ref+t.purpose).toLowerCase().includes(s);
-      return ms&&(!d||t.date===d);
+      return ms&&inDateRange(t.date,dF,dT);
     });
   }
   return [];
@@ -1374,12 +1388,29 @@ function computeBalances(){
   return out;
 }
 
+function inDateRange(date,from,to){
+  if(!from&&!to)return true;
+  if(from&&date<from)return false;
+  if(to&&date>to)return false;
+  return true;
+}
+
+function clearLogFilters(prefix){
+  const s=document.getElementById(prefix+'-search');if(s)s.value='';
+  const f=document.getElementById(prefix+'-date-from');if(f)f.value='';
+  const t=document.getElementById(prefix+'-date-to');if(t)t.value='';
+  if(prefix==='in')renderStockIn();
+  else if(prefix==='out')renderStockOut();
+  else if(prefix==='iss')renderIssuance();
+}
+
 function renderStockIn(){
   const search=(document.getElementById('in-search')||{value:''}).value.toLowerCase();
-  const dateF=(document.getElementById('in-date-filter')||{value:''}).value;
+  const dFrom=(document.getElementById('in-date-from')||{value:''}).value;
+  const dTo=(document.getElementById('in-date-to')||{value:''}).value;
   const txns=[...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id).filter(t=>{
     const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||((t.ref||'')+' '+(t.notes||'')).toLowerCase().includes(search);
-    return ms&&(!dateF||t.date===dateF);
+    return ms&&inDateRange(t.date,dFrom,dTo);
   });
   const bal=computeBalances();
   const tb=document.getElementById('stockin-table');
@@ -1402,10 +1433,11 @@ function renderStockIn(){
 
 function renderStockOut(){
   const search=(document.getElementById('out-search')||{value:''}).value.toLowerCase();
-  const dateF=(document.getElementById('out-date-filter')||{value:''}).value;
+  const dFrom=(document.getElementById('out-date-from')||{value:''}).value;
+  const dTo=(document.getElementById('out-date-to')||{value:''}).value;
   const txns=[...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id).filter(t=>{
     const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||((t.issuedTo||'')+' '+(t.purpose||'')).toLowerCase().includes(search);
-    return ms&&(!dateF||t.date===dateF);
+    return ms&&inDateRange(t.date,dFrom,dTo);
   });
   const bal=computeBalances();
   const tb=document.getElementById('stockout-table');
@@ -1428,16 +1460,18 @@ function renderStockOut(){
 
 function renderIssuance(){
   const search=(document.getElementById('iss-search')||{value:''}).value.toLowerCase();
-  const dateF=(document.getElementById('iss-date-filter')||{value:''}).value;
+  const dFrom=(document.getElementById('iss-date-from')||{value:''}).value;
+  const dTo=(document.getElementById('iss-date-to')||{value:''}).value;
   const txns=[...state.transactions].sort((a,b)=>b.id-a.id).filter(t=>{
     const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||(t.issuedTo+t.ref+t.purpose).toLowerCase().includes(search);
-    return ms&&(!dateF||t.date===dateF);
+    return ms&&inDateRange(t.date,dFrom,dTo);
   });
   const bal=computeBalances();
   const tb=document.getElementById('issuance-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="10"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';updateBulkInfo('iss');return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
+    <td class="no-print"><input type="checkbox" class="txn-chk-iss" data-id="${t.id}" onchange="updateBulkInfo('iss')"></td>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
     <td style="font-weight:600">${getPartName(t.partId)}</td>
@@ -1448,6 +1482,7 @@ function renderIssuance(){
     <td style="color:#888">${t.type==='in'?(t.notes||'—'):(t.purpose||'—')}</td>
     <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
   </tr>`).join('');
+  updateBulkInfo('iss');
 }
 
 function renderCategories(){
