@@ -277,12 +277,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="iss-date-to" onchange="renderIssuance()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('iss')">Clear</button>
         <span class="bulk-info" id="iss-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="iss-bulk-delete" style="display:none" onclick="bulkDeleteTxns('iss',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
         <button class="btn btn-sm btn-danger-strong" id="iss-bulk-purge" style="display:none" onclick="bulkDeleteTxns('iss',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th class="no-print" style="width:32px"><input type="checkbox" id="iss-chk-all" onchange="toggleAllTxns('iss',this.checked)"></th><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Balance</th><th>Issued To / Supplier</th><th>Purpose / Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
+          <thead><tr><th class="no-print" style="width:32px"><input type="checkbox" id="iss-chk-all" onchange="toggleAllTxns('iss',this.checked)"></th><th>#</th><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Balance</th><th>Issued To / Supplier</th><th>Purpose / Notes</th></tr></thead>
           <tbody id="issuance-table"></tbody>
         </table>
       </div>
@@ -1510,7 +1509,7 @@ function renderIssuance(){
   const bal=computeBalances();
   const tb=document.getElementById('issuance-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="10"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';updateBulkInfo('iss');return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No records found</div></td></tr>';updateBulkInfo('iss');return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
     <td class="no-print"><input type="checkbox" class="txn-chk-iss" data-id="${t.id}" onchange="updateBulkInfo('iss')"></td>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
@@ -1521,7 +1520,6 @@ function renderIssuance(){
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td>
     <td style="color:#888">${t.type==='in'?(t.notes||'—'):(t.purpose||'—')}</td>
-    <td class="no-print"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
   </tr>`).join('');
   updateBulkInfo('iss');
 }
