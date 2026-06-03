@@ -113,6 +113,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .btn-danger-strong{background:#A32D2D;color:#fff;border-color:#A32D2D;font-weight:600;box-shadow:0 0 0 1px #A32D2D inset}
 .btn-danger-strong:hover{background:#7d1f1f;border-color:#7d1f1f}
 .btn-danger-strong i{font-size:14px}
+.part-sku{color:#185FA5;font-family:monospace;font-weight:600;font-size:12px;margin-right:4px}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -793,6 +794,11 @@ function getPartName(id){
   if(!p)return 'Unknown';
   return (p.sku?'['+p.sku+'] ':'')+p.name;
 }
+function getPartLabel(id){
+  const p=state.parts.find(x=>x.id===id);
+  if(!p)return 'Unknown';
+  return (p.sku?`<span class="part-sku">[${p.sku}]</span>`:'')+p.name;
+}
 function getPartCat(id){const p=state.parts.find(x=>x.id===id);return p?p.category:''}
 function getPartUnit(id){const p=state.parts.find(x=>x.id===id);return p?p.unit:''}
 function stockStatus(p){
@@ -1365,10 +1371,10 @@ function renderDashboard(){
     <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value c-red">${outOfStock}</div><div class="stat-sub">critical</div></div>`;
   const lsl=document.getElementById('low-stock-list');
   const lp=state.parts.filter(p=>p.qty<=p.minQty);
-  if(lsl)lsl.innerHTML=lp.length?`<table><thead><tr><th>Part</th><th>Category</th><th>Current Qty</th><th>Min Qty</th><th>Status</th></tr></thead><tbody>${lp.map(p=>{const s=stockStatus(p);return`<tr><td style="font-weight:600">${p.name}</td><td>${p.category}</td><td>${p.qty} ${p.unit}</td><td>${p.minQty}</td><td><span class="badge ${s.cls}">${s.label}</span></td></tr>`}).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-circle-check" style="color:#2d6a10;font-size:28px"></i>All stock levels are healthy</div>';
+  if(lsl)lsl.innerHTML=lp.length?`<table><thead><tr><th>Part</th><th>Category</th><th>Current Qty</th><th>Min Qty</th><th>Status</th></tr></thead><tbody>${lp.map(p=>{const s=stockStatus(p);return`<tr><td style="font-weight:600">${p.sku?`<span class="part-sku">[${p.sku}]</span>`:''}${p.name}</td><td>${p.category}</td><td>${p.qty} ${p.unit}</td><td>${p.minQty}</td><td><span class="badge ${s.cls}">${s.label}</span></td></tr>`}).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-circle-check" style="color:#2d6a10;font-size:28px"></i>All stock levels are healthy</div>';
   const rt=document.getElementById('recent-txns');
   const recent=[...state.transactions].sort((a,b)=>b.id-a.id).slice(0,6);
-  if(rt)rt.innerHTML=recent.length?`<table><thead><tr><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Details</th></tr></thead><tbody>${recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td style="font-weight:600">${getPartName(t.partId)}</td><td><span class="badge badge-${t.type}">${t.type==='in'?'Stock In':'Issue'}</span></td><td class="${t.type==='in'?'qty-positive':'qty-negative'}">${t.type==='in'?'+':'−'}${t.qty} ${getPartUnit(t.partId)}</td><td style="color:#888">${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-file-off"></i>No transactions yet</div>';
+  if(rt)rt.innerHTML=recent.length?`<table><thead><tr><th>Date</th><th>Part</th><th>Type</th><th>Qty</th><th>Details</th></tr></thead><tbody>${recent.map(t=>`<tr><td>${fmtDate(t.date)}</td><td style="font-weight:600">${getPartLabel(t.partId)}</td><td><span class="badge badge-${t.type}">${t.type==='in'?'Stock In':'Issue'}</span></td><td class="${t.type==='in'?'qty-positive':'qty-negative'}">${t.type==='in'?'+':'−'}${t.qty} ${getPartUnit(t.partId)}</td><td style="color:#888">${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td></tr>`).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-file-off"></i>No transactions yet</div>';
 }
 
 function renderInventory(){
@@ -1455,7 +1461,7 @@ function renderStockIn(){
     <td class="no-print"><input type="checkbox" class="txn-chk-in" data-id="${t.id}" onchange="updateBulkInfo('in')"></td>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
-    <td style="font-weight:600">${getPartName(t.partId)}</td>
+    <td style="font-weight:600">${getPartLabel(t.partId)}</td>
     <td>${getPartCat(t.partId)}</td>
     <td class="qty-positive">+${t.qty} ${getPartUnit(t.partId)}</td>
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
@@ -1482,7 +1488,7 @@ function renderStockOut(){
     <td class="no-print"><input type="checkbox" class="txn-chk-out" data-id="${t.id}" onchange="updateBulkInfo('out')"></td>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
-    <td style="font-weight:600">${getPartName(t.partId)}</td>
+    <td style="font-weight:600">${getPartLabel(t.partId)}</td>
     <td>${getPartCat(t.partId)}</td>
     <td class="qty-negative">−${t.qty} ${getPartUnit(t.partId)}</td>
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
@@ -1509,7 +1515,7 @@ function renderIssuance(){
     <td class="no-print"><input type="checkbox" class="txn-chk-iss" data-id="${t.id}" onchange="updateBulkInfo('iss')"></td>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
-    <td style="font-weight:600">${getPartName(t.partId)}</td>
+    <td style="font-weight:600">${getPartLabel(t.partId)}</td>
     <td><span class="badge badge-${t.type}">${t.type==='in'?'Stock In':'Issue'}</span></td>
     <td class="${t.type==='in'?'qty-positive':'qty-negative'}">${t.type==='in'?'+':'−'}${t.qty} ${getPartUnit(t.partId)}</td>
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
