@@ -206,6 +206,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
           <button class="btn btn-success" onclick="openModal('addIn')"><i class="ti ti-plus"></i> Record Stock In</button>
         </div>
       </div>
+      <div class="search-bar no-print">
+        <input type="text" placeholder="Search by part, supplier, notes..." id="in-search" oninput="renderStockIn()">
+        <input type="date" id="in-date-filter" onchange="renderStockIn()" style="width:160px">
+        <button class="btn btn-sm" onclick="document.getElementById('in-search').value='';document.getElementById('in-date-filter').value='';renderStockIn()">Clear</button>
+      </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
           <thead><tr><th>#</th><th>Date</th><th>Part</th><th>Category</th><th>Qty Added</th><th>Balance</th><th>Supplier / Ref</th><th>Notes</th><th class="no-print" style="width:60px"></th></tr></thead>
@@ -223,6 +228,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
           <button class="btn btn-excel" onclick="openExportModal('stockout')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
           <button class="btn btn-danger-soft" onclick="openModal('addOut')"><i class="ti ti-plus"></i> Record Stock Out</button>
         </div>
+      </div>
+      <div class="search-bar no-print">
+        <input type="text" placeholder="Search by part, issued to, purpose..." id="out-search" oninput="renderStockOut()">
+        <input type="date" id="out-date-filter" onchange="renderStockOut()" style="width:160px">
+        <button class="btn btn-sm" onclick="document.getElementById('out-search').value='';document.getElementById('out-date-filter').value='';renderStockOut()">Clear</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -761,8 +771,22 @@ function getSectionData(sec){
       return txt&&cat&&mach;
     });
   }
-  if(sec==='stockin') return [...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id);
-  if(sec==='stockout') return [...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id);
+  if(sec==='stockin'){
+    const s=(document.getElementById('in-search')||{value:''}).value.toLowerCase();
+    const d=(document.getElementById('in-date-filter')||{value:''}).value;
+    return [...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id).filter(t=>{
+      const ms=!s||getPartName(t.partId).toLowerCase().includes(s)||((t.ref||'')+' '+(t.notes||'')).toLowerCase().includes(s);
+      return ms&&(!d||t.date===d);
+    });
+  }
+  if(sec==='stockout'){
+    const s=(document.getElementById('out-search')||{value:''}).value.toLowerCase();
+    const d=(document.getElementById('out-date-filter')||{value:''}).value;
+    return [...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id).filter(t=>{
+      const ms=!s||getPartName(t.partId).toLowerCase().includes(s)||((t.issuedTo||'')+' '+(t.purpose||'')).toLowerCase().includes(s);
+      return ms&&(!d||t.date===d);
+    });
+  }
   if(sec==='issuance'){
     const s=(document.getElementById('iss-search')||{value:''}).value.toLowerCase();
     const d=(document.getElementById('iss-date-filter')||{value:''}).value;
@@ -1310,11 +1334,16 @@ function computeBalances(){
 }
 
 function renderStockIn(){
-  const txns=[...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id);
+  const search=(document.getElementById('in-search')||{value:''}).value.toLowerCase();
+  const dateF=(document.getElementById('in-date-filter')||{value:''}).value;
+  const txns=[...state.transactions].filter(t=>t.type==='in').sort((a,b)=>b.id-a.id).filter(t=>{
+    const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||((t.ref||'')+' '+(t.notes||'')).toLowerCase().includes(search);
+    return ms&&(!dateF||t.date===dateF);
+  });
   const bal=computeBalances();
   const tb=document.getElementById('stockin-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-file-off"></i>No stock in records</div></td></tr>';return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No matching stock in records</div></td></tr>';return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
@@ -1329,11 +1358,16 @@ function renderStockIn(){
 }
 
 function renderStockOut(){
-  const txns=[...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id);
+  const search=(document.getElementById('out-search')||{value:''}).value.toLowerCase();
+  const dateF=(document.getElementById('out-date-filter')||{value:''}).value;
+  const txns=[...state.transactions].filter(t=>t.type==='out').sort((a,b)=>b.id-a.id).filter(t=>{
+    const ms=!search||getPartName(t.partId).toLowerCase().includes(search)||((t.issuedTo||'')+' '+(t.purpose||'')).toLowerCase().includes(search);
+    return ms&&(!dateF||t.date===dateF);
+  });
   const bal=computeBalances();
   const tb=document.getElementById('stockout-table');
   if(!tb)return;
-  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-file-off"></i>No stock out records</div></td></tr>';return;}
+  if(!txns.length){tb.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-search"></i>No matching stock out records</div></td></tr>';return;}
   tb.innerHTML=txns.map((t,i)=>`<tr>
     <td style="color:#bbb;font-size:12px">${i+1}</td>
     <td>${fmtDate(t.date)}</td>
