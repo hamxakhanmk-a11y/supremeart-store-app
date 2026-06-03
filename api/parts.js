@@ -1,4 +1,4 @@
-const { sql, ensureTables, parseBody, normalizeModule } = require('../lib/db');
+const { sql, ensureTables, parseBody, normalizeModule, logActivity } = require('../lib/db');
 
 module.exports = async (req, res) => {
   try {
@@ -70,6 +70,15 @@ module.exports = async (req, res) => {
       const qtyVal = (qty === undefined || qty === null || qty === '')
         ? null
         : Math.max(0, parseInt(qty) || 0);
+      // If qty is being changed, capture the old value first for the activity log
+      let beforeQty = null, partInfo = null;
+      if (qtyVal !== null) {
+        const existing = await sql`SELECT id, name, sku, unit, module, qty FROM parts WHERE id = ${id}`;
+        if (existing.length) {
+          partInfo = existing[0];
+          beforeQty = partInfo.qty;
+        }
+      }
       try {
         if (qtyVal === null) {
           await sql`
@@ -88,6 +97,17 @@ module.exports = async (req, res) => {
                 min_qty = ${minQty || 0}, description = ${desc || ''}
             WHERE id = ${id}
           `;
+          // Only log if qty actually changed
+          if (partInfo && beforeQty !== qtyVal) {
+            const diff = qtyVal - beforeQty;
+            const sign = diff > 0 ? '+' : '';
+            await logActivity({
+              action: 'qty_edited',
+              summary: `Edited qty of "${partInfo.name}": ${beforeQty} → ${qtyVal} ${partInfo.unit} (${sign}${diff})`,
+              details: { partId: partInfo.id, partName: partInfo.name, partSku: partInfo.sku, beforeQty, afterQty: qtyVal, unit: partInfo.unit },
+              module: partInfo.module
+            });
+          }
         }
         return res.json({ ok: true });
       } catch (e) {

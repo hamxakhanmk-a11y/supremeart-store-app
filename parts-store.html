@@ -146,6 +146,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="divider"></div>
     <div class="nav-item" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
     <div class="nav-item" onclick="showPage('machines',this)"><i class="ti ti-building-factory-2"></i> Machines</div>
+    <div class="nav-item" onclick="showPage('activity',this)"><i class="ti ti-history"></i> Activity Log</div>
     <div class="nav-item" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
   </div>
 
@@ -304,6 +305,20 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <table>
           <thead><tr><th>Machine Name</th><th>Parts Count</th><th style="width:80px">Actions</th></tr></thead>
           <tbody id="machine-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ACTIVITY LOG -->
+    <div class="page" id="page-activity">
+      <div class="page-header">
+        <div class="page-title">Activity Log</div>
+        <span style="font-size:12px;color:#888">Tracks deletions of stock records and silent qty edits.</span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th style="width:160px">When</th><th style="width:130px">Action</th><th>Details</th></tr></thead>
+          <tbody id="activity-table"></tbody>
         </table>
       </div>
     </div>
@@ -525,7 +540,8 @@ let state = {
   machines: [],
   parts: [],
   transactions: [],
-  trash: []
+  trash: [],
+  activity: []
 };
 
 const MODULE_LABEL = {machinery:'Machinery & Electrical', consumables:'Inks & Consumables'};
@@ -563,17 +579,19 @@ async function apiFetch(url, method='GET', body=null){
 async function loadAll(){
   try{
     const m='?module='+encodeURIComponent(state.module);
-    const [categories,machines,parts,transactions,trash]=await Promise.all([
+    const [categories,machines,parts,transactions,trash,activity]=await Promise.all([
       apiFetch('/api/categories'+m),
       apiFetch('/api/machines'+m),
       apiFetch('/api/parts'+m),
       apiFetch('/api/transactions'),
-      apiFetch('/api/trash'+m)
+      apiFetch('/api/trash'+m),
+      apiFetch('/api/activity'+m)
     ]);
     state.categories=categories;
     state.machines=machines;
     state.parts=parts;
     state.trash=trash.items||[];
+    state.activity=activity||[];
     // Only transactions for parts in this module
     const partIds=new Set(parts.map(p=>p.id));
     state.transactions=transactions.filter(t=>partIds.has(t.partId));
@@ -1504,6 +1522,21 @@ function renderMachines(){
   }).join('');
 }
 
+function renderActivity(){
+  const tb=document.getElementById('activity-table');
+  if(!tb)return;
+  const items=state.activity||[];
+  if(!items.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-history"></i>No activity yet</div></td></tr>';return;}
+  const fmtTs=ts=>{if(!ts)return'';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
+  const actionLabel={txn_deleted:'Deleted Record',qty_edited:'Qty Edited'};
+  const actionCls={txn_deleted:'badge-critical',qty_edited:'badge-low'};
+  tb.innerHTML=items.map(a=>`<tr>
+    <td style="color:#888;font-size:12px">${fmtTs(a.createdAt)}</td>
+    <td><span class="badge ${actionCls[a.action]||'badge-ok'}">${actionLabel[a.action]||a.action}</span></td>
+    <td>${a.summary}</td>
+  </tr>`).join('');
+}
+
 function renderTrash(){
   const tb=document.getElementById('trash-table');
   if(!tb)return;
@@ -1524,7 +1557,7 @@ function renderTrash(){
     </td>
   </tr>`).join('');
 }
-function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderMachines();renderTrash();}
+function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderMachines();renderActivity();renderTrash();}
 // Apply persisted module to UI before first load
 (function initModule(){
   const m=state.module;

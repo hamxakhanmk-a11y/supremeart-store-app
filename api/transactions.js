@@ -1,4 +1,4 @@
-const { sql, ensureTables, parseBody } = require('../lib/db');
+const { sql, ensureTables, parseBody, logActivity } = require('../lib/db');
 
 module.exports = async (req, res) => {
   try {
@@ -71,18 +71,23 @@ module.exports = async (req, res) => {
       }
       if (!ids || !ids.length) return res.status(400).json({ error: 'ID(s) required' });
 
-      const txns = await sql`SELECT id, type, part_id, qty FROM transactions WHERE id = ANY(${ids})`;
+      // Fetch full transaction details for both the qty reversal AND the activity log
+      const txns = await sql`
+        SELECT id, type, part_id AS "partId", qty, date::text AS date,
+               ref, notes, issued_to AS "issuedTo", purpose
+        FROM transactions WHERE id = ANY(${ids})
+      `;
       if (!txns.length) return res.json({ ok: true, deleted: 0 });
 
       // Net qty delta per part to apply (added to current qty)
       const delta = {};
       for (const t of txns) {
-        delta[t.part_id] = (delta[t.part_id] || 0) + (t.type === 'in' ? -t.qty : t.qty);
+        delta[t.partId] = (delta[t.partId] || 0) + (t.type === 'in' ? -t.qty : t.qty);
       }
 
       // Verify no part goes below zero
       const partIds = Object.keys(delta).map(Number);
-      const parts = await sql`SELECT id, name, qty FROM parts WHERE id = ANY(${partIds})`;
+      const parts = await sql`SELECT id, name, sku, unit, module, qty FROM parts WHERE id = ANY(${partIds})`;
       const partsMap = Object.fromEntries(parts.map(p => [p.id, p]));
       for (const pid of partIds) {
         const p = partsMap[pid];
@@ -99,6 +104,22 @@ module.exports = async (req, res) => {
         }
       }
       await sql`DELETE FROM transactions WHERE id = ANY(${ids})`;
+
+      // Activity log: one entry per deleted txn
+      for (const t of txns) {
+        const p = partsMap[t.partId] || {};
+        const verb = t.type === 'in' ? 'Stock In' : 'Stock Out';
+        const sign = t.type === 'in' ? '+' : '-';
+        const who = t.type === 'in' ? (t.ref || '—') : (t.issuedTo || '—');
+        const summary = `Deleted ${verb}: ${sign}${t.qty} ${p.unit || ''} of "${p.name || ('part #' + t.partId)}" on ${t.date} (${t.type === 'in' ? 'ref' : 'to'}: ${who})`;
+        await logActivity({
+          action: 'txn_deleted',
+          summary,
+          details: { ...t, partName: p.name, partSku: p.sku, partUnit: p.unit },
+          module: p.module
+        });
+      }
+
       return res.json({ ok: true, deleted: txns.length });
     }
 
