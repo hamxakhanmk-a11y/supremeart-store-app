@@ -59,27 +59,47 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'DELETE') {
-      const id = req.query.id;
-      if (!id) return res.status(400).json({ error: 'ID required' });
-
-      const txns = await sql`SELECT * FROM transactions WHERE id = ${id}`;
-      if (!txns.length) return res.status(404).json({ error: 'Transaction not found' });
-      const txn = txns[0];
-
-      if (txn.type === 'in') {
-        const parts = await sql`SELECT qty FROM parts WHERE id = ${txn.part_id}`;
-        if (parts.length && parts[0].qty < txn.qty) {
-          return res.status(400).json({
-            error: `Cannot delete: current stock (${parts[0].qty}) is less than this record's qty (${txn.qty}). Adjust stock first.`
-          });
-        }
-        await sql`UPDATE parts SET qty = qty - ${txn.qty} WHERE id = ${txn.part_id}`;
+      // Accept either ?id=123 (single) or body { ids: [...] } (bulk)
+      let ids;
+      if (req.query.id) {
+        const single = parseInt(req.query.id);
+        if (!single) return res.status(400).json({ error: 'ID required' });
+        ids = [single];
       } else {
-        await sql`UPDATE parts SET qty = qty + ${txn.qty} WHERE id = ${txn.part_id}`;
+        const body = await parseBody(req);
+        if (Array.isArray(body.ids)) ids = body.ids.map(Number).filter(Boolean);
+      }
+      if (!ids || !ids.length) return res.status(400).json({ error: 'ID(s) required' });
+
+      const txns = await sql`SELECT id, type, part_id, qty FROM transactions WHERE id = ANY(${ids})`;
+      if (!txns.length) return res.json({ ok: true, deleted: 0 });
+
+      // Net qty delta per part to apply (added to current qty)
+      const delta = {};
+      for (const t of txns) {
+        delta[t.part_id] = (delta[t.part_id] || 0) + (t.type === 'in' ? -t.qty : t.qty);
       }
 
-      await sql`DELETE FROM transactions WHERE id = ${id}`;
-      return res.json({ ok: true });
+      // Verify no part goes below zero
+      const partIds = Object.keys(delta).map(Number);
+      const parts = await sql`SELECT id, name, qty FROM parts WHERE id = ANY(${partIds})`;
+      const partsMap = Object.fromEntries(parts.map(p => [p.id, p]));
+      for (const pid of partIds) {
+        const p = partsMap[pid];
+        if (p && p.qty + delta[pid] < 0) {
+          return res.status(400).json({
+            error: `Cannot delete: would make "${p.name}" go below zero (current ${p.qty}, net reversal ${delta[pid]}). Adjust stock first.`
+          });
+        }
+      }
+
+      for (const pid of partIds) {
+        if (delta[pid] !== 0) {
+          await sql`UPDATE parts SET qty = qty + ${delta[pid]} WHERE id = ${pid}`;
+        }
+      }
+      await sql`DELETE FROM transactions WHERE id = ANY(${ids})`;
+      return res.json({ ok: true, deleted: txns.length });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
