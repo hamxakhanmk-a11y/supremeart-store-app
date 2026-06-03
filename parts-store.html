@@ -313,7 +313,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <div class="modal-overlay" id="modal-addIn">
   <div class="modal">
     <div class="modal-title" style="color:#2d6a10"><i class="ti ti-arrow-bar-to-down"></i> Record Stock In</div>
-    <div class="form-group"><label class="form-label">Part *</label><select id="f-in-part"></select></div>
+    <div class="form-group">
+      <label class="form-label">Part *</label>
+      <input type="text" id="f-in-part-search" placeholder="Search by name, SKU, category..." oninput="filterPartSelect('f-in-part',this.value)" style="margin-bottom:6px">
+      <select id="f-in-part" size="6" style="height:auto"></select>
+    </div>
     <div class="two-col">
       <div class="form-group"><label class="form-label">Quantity *</label><input id="f-in-qty" type="number" min="1" placeholder="0"></div>
       <div class="form-group"><label class="form-label">Date *</label><input id="f-in-date" type="date"></div>
@@ -330,7 +334,11 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <div class="modal-overlay" id="modal-addOut">
   <div class="modal">
     <div class="modal-title" style="color:#993C1D"><i class="ti ti-arrow-bar-up"></i> Record Stock Out / Issue</div>
-    <div class="form-group"><label class="form-label">Part *</label><select id="f-out-part"></select></div>
+    <div class="form-group">
+      <label class="form-label">Part *</label>
+      <input type="text" id="f-out-part-search" placeholder="Search by name, SKU, category..." oninput="filterPartSelect('f-out-part',this.value)" style="margin-bottom:6px">
+      <select id="f-out-part" size="6" style="height:auto"></select>
+    </div>
     <div class="two-col">
       <div class="form-group"><label class="form-group"><label class="form-label">Quantity *</label><input id="f-out-qty" type="number" min="1" placeholder="0"></div>
       <div class="form-group"><label class="form-label">Date *</label><input id="f-out-date" type="date"></div>
@@ -529,8 +537,8 @@ async function showPage(id,el){
 }
 
 function openModal(id){
-  if(id==='addIn'){document.getElementById('f-in-date').value=today();populatePartSelect('f-in-part')}
-  if(id==='addOut'){document.getElementById('f-out-date').value=today();populatePartSelect('f-out-part')}
+  if(id==='addIn'){document.getElementById('f-in-date').value=today();document.getElementById('f-in-part-search').value='';populatePartSelect('f-in-part')}
+  if(id==='addOut'){document.getElementById('f-out-date').value=today();document.getElementById('f-out-part-search').value='';populatePartSelect('f-out-part')}
   if(id==='addPart'){populateCatSelect('f-part-cat');populateMachineSelect('f-part-machine','')}
   document.getElementById('modal-'+id).classList.add('open');
 }
@@ -617,7 +625,28 @@ async function addMachineInline(targetId){
     populateMachineSelect(targetId,current.join(', '));
   }catch(e){alert(e.message);}
 }
-function populatePartSelect(id){document.getElementById(id).innerHTML=state.parts.map(p=>`<option value="${p.id}">${p.name} (${p.qty} ${p.unit})</option>`).join('')}
+function populatePartSelect(id){
+  const el=document.getElementById(id);
+  el.innerHTML=state.parts.map(p=>{
+    const sku=p.sku?p.sku+' · ':'';
+    const cat=p.category||'';
+    const machines=parseMachines(p.machine).join(', ');
+    return `<option value="${p.id}" data-search="${(sku+p.name+' '+cat+' '+machines).toLowerCase().replace(/"/g,'&quot;')}">${p.sku?'['+p.sku+'] ':''}${p.name} — ${p.qty} ${p.unit}${cat?' · '+cat:''}</option>`;
+  }).join('');
+}
+
+function filterPartSelect(id,query){
+  const el=document.getElementById(id);
+  const q=(query||'').trim().toLowerCase();
+  let firstMatch=null;
+  Array.from(el.options).forEach(opt=>{
+    const hit=!q||opt.dataset.search.includes(q);
+    opt.hidden=!hit;
+    opt.disabled=!hit;
+    if(hit && !firstMatch)firstMatch=opt;
+  });
+  if(firstMatch)el.value=firstMatch.value;
+}
 
 function getPartName(id){const p=state.parts.find(x=>x.id===id);return p?p.name:'Unknown'}
 function getPartCat(id){const p=state.parts.find(x=>x.id===id);return p?p.category:''}
