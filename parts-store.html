@@ -219,7 +219,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="in-date-to" onchange="renderStockIn()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('in')">Clear</button>
         <span class="bulk-info" id="in-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in',false)"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-soft" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
         <button class="btn btn-sm btn-danger-strong" id="in-bulk-purge" style="display:none" onclick="bulkDeleteTxns('in',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
@@ -248,7 +248,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="out-date-to" onchange="renderStockOut()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('out')">Clear</button>
         <span class="bulk-info" id="out-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out',false)"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-soft" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
         <button class="btn btn-sm btn-danger-strong" id="out-bulk-purge" style="display:none" onclick="bulkDeleteTxns('out',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
@@ -276,7 +276,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="iss-date-to" onchange="renderIssuance()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('iss')">Clear</button>
         <span class="bulk-info" id="iss-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="iss-bulk-delete" style="display:none" onclick="bulkDeleteTxns('iss',false)"><i class="ti ti-trash"></i> Delete Selected</button>
+        <button class="btn btn-sm btn-danger-soft" id="iss-bulk-delete" style="display:none" onclick="bulkDeleteTxns('iss',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
         <button class="btn btn-sm btn-danger-strong" id="iss-bulk-purge" style="display:none" onclick="bulkDeleteTxns('iss',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
@@ -1306,7 +1306,7 @@ async function bulkDeleteTxns(kind,historyOnly){
   const label=kind==='in'?'stock in':(kind==='out'?'stock out':'transaction');
   const msg=historyOnly
     ? '⚠ PERMANENTLY DELETE '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+' FROM HISTORY?\n\n• Current stock quantities WILL NOT be adjusted (use this for cleaning up old records where stock has already settled).\n• The records will be gone from Stock In / Out / Issuance views.\n• An entry is written to the Activity Log so you can see what was purged.\n\nThis cannot be undone. Continue?'
-    : 'Delete '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+'?\nThis will reverse their qty changes and cannot be undone.';
+    : 'Reverse '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+'?\n\nQty changes will be undone and the records removed. Cannot be undone.';
   if(!confirm(msg))return;
   try{
     await apiFetch('/api/transactions','DELETE',{ids,historyOnly:!!historyOnly});
@@ -1328,7 +1328,7 @@ async function bulkDeleteTxns(kind,historyOnly){
 async function deleteTxn(id){
   const t=state.transactions.find(x=>x.id===id);
   if(!t)return;
-  if(!confirm('Delete this '+(t.type==='in'?'stock in':'stock out')+' record?\nThis will reverse the qty change.'))return;
+  if(!confirm('Reverse this '+(t.type==='in'?'stock in':'stock out')+' record?\n\nThe qty change will be undone and the record removed.\nUse "Delete from History" instead if you only want to clean up old records without touching stock.'))return;
   try{
     await apiFetch('/api/transactions?id='+id,'DELETE');
     // Reverse qty locally
@@ -1461,7 +1461,7 @@ function renderStockIn(){
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.ref||'—'}</td>
     <td style="color:#888">${t.notes||'—'}</td>
-    <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
+    <td class="no-print"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
   </tr>`).join('');
   updateBulkInfo('in');
 }
@@ -1488,7 +1488,7 @@ function renderStockOut(){
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.issuedTo||'—'}</td>
     <td style="color:#888">${t.purpose||'—'}</td>
-    <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
+    <td class="no-print"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
   </tr>`).join('');
   updateBulkInfo('out');
 }
@@ -1515,7 +1515,7 @@ function renderIssuance(){
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.type==='in'?(t.ref||'—'):(t.issuedTo||'—')}</td>
     <td style="color:#888">${t.type==='in'?(t.notes||'—'):(t.purpose||'—')}</td>
-    <td class="no-print"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteTxn(${t.id})"><i class="ti ti-trash"></i></button></td>
+    <td class="no-print"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
   </tr>`).join('');
   updateBulkInfo('iss');
 }
@@ -1545,7 +1545,7 @@ function renderActivity(){
   const items=state.activity||[];
   if(!items.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-history"></i>No activity yet</div></td></tr>';return;}
   const fmtTs=ts=>{if(!ts)return'';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
-  const actionLabel={txn_deleted:'Deleted Record',txn_purged:'Purged from History',qty_edited:'Qty Edited'};
+  const actionLabel={txn_deleted:'Reversed',txn_purged:'Purged from History',qty_edited:'Qty Edited'};
   const actionCls={txn_deleted:'badge-low',txn_purged:'badge-critical',qty_edited:'badge-low'};
   tb.innerHTML=items.map(a=>`<tr>
     <td style="color:#888;font-size:12px">${fmtTs(a.createdAt)}</td>

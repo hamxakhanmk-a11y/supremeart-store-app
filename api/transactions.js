@@ -116,7 +116,7 @@ module.exports = async (req, res) => {
         const sign = t.type === 'in' ? '+' : '-';
         const who = t.type === 'in' ? (t.ref || '—') : (t.issuedTo || '—');
         const partLabel = (p.sku ? `[${p.sku}] ` : '') + (p.name || ('part #' + t.partId));
-        const prefix = historyOnly ? 'Purged from history' : 'Deleted';
+        const prefix = historyOnly ? 'Purged from history' : 'Reversed';
         const summary = `${prefix} ${verb}: ${sign}${t.qty} ${p.unit || ''} of "${partLabel}" on ${t.date} (${t.type === 'in' ? 'ref' : 'to'}: ${who})`;
         await logActivity({
           action,
