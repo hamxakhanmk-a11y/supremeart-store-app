@@ -103,7 +103,7 @@ module.exports = async (req, res) => {
             const sign = diff > 0 ? '+' : '';
             await logActivity({
               action: 'qty_edited',
-              summary: `Edited qty of "${partInfo.name}": ${beforeQty} → ${qtyVal} ${partInfo.unit} (${sign}${diff})`,
+              summary: `Edited qty of "${(partInfo.sku ? '[' + partInfo.sku + '] ' : '') + partInfo.name}": ${beforeQty} → ${qtyVal} ${partInfo.unit} (${sign}${diff})`,
               details: { partId: partInfo.id, partName: partInfo.name, partSku: partInfo.sku, beforeQty, afterQty: qtyVal, unit: partInfo.unit },
               module: partInfo.module
             });

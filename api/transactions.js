@@ -111,7 +111,8 @@ module.exports = async (req, res) => {
         const verb = t.type === 'in' ? 'Stock In' : 'Stock Out';
         const sign = t.type === 'in' ? '+' : '-';
         const who = t.type === 'in' ? (t.ref || '—') : (t.issuedTo || '—');
-        const summary = `Deleted ${verb}: ${sign}${t.qty} ${p.unit || ''} of "${p.name || ('part #' + t.partId)}" on ${t.date} (${t.type === 'in' ? 'ref' : 'to'}: ${who})`;
+        const partLabel = (p.sku ? `[${p.sku}] ` : '') + (p.name || ('part #' + t.partId));
+        const summary = `Deleted ${verb}: ${sign}${t.qty} ${p.unit || ''} of "${partLabel}" on ${t.date} (${t.type === 'in' ? 'ref' : 'to'}: ${who})`;
         await logActivity({
           action: 'txn_deleted',
           summary,

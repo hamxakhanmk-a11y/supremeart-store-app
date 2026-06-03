@@ -782,7 +782,11 @@ function resetPartCombo(prefix){
   document.getElementById(prefix+'-dropdown').classList.remove('open');
 }
 
-function getPartName(id){const p=state.parts.find(x=>x.id===id);return p?p.name:'Unknown'}
+function getPartName(id){
+  const p=state.parts.find(x=>x.id===id);
+  if(!p)return 'Unknown';
+  return (p.sku?'['+p.sku+'] ':'')+p.name;
+}
 function getPartCat(id){const p=state.parts.find(x=>x.id===id);return p?p.category:''}
 function getPartUnit(id){const p=state.parts.find(x=>x.id===id);return p?p.unit:''}
 function stockStatus(p){
