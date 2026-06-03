@@ -114,6 +114,29 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .btn-danger-strong:hover{background:#7d1f1f;border-color:#7d1f1f}
 .btn-danger-strong i{font-size:14px}
 .part-sku{color:#185FA5;font-family:monospace;font-weight:600;font-size:12px;margin-right:4px}
+/* ===== Branded dialog system (replaces native alert/confirm/prompt) ===== */
+.app-dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;transition:opacity 0.15s}
+.app-dialog-overlay.open{opacity:1}
+.app-dialog{background:#fff;border-radius:14px;padding:1.75rem 1.5rem 1.25rem;width:440px;max-width:92vw;box-shadow:0 12px 48px rgba(0,0,0,0.20);text-align:center;transform:scale(0.94) translateY(6px);transition:transform 0.18s cubic-bezier(0.34,1.56,0.64,1);font-family:inherit}
+.app-dialog-overlay.open .app-dialog{transform:scale(1) translateY(0)}
+.app-dialog-icon{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.app-dialog-icon i{font-size:30px}
+.app-dialog-icon-danger{background:#fcebeb;color:#A32D2D}
+.app-dialog-icon-confirm{background:#fdf4e3;color:#854F0B}
+.app-dialog-icon-warn{background:#fdf4e3;color:#854F0B}
+.app-dialog-icon-success{background:#eaf3de;color:#2d6a10}
+.app-dialog-icon-error{background:#fcebeb;color:#A32D2D}
+.app-dialog-icon-info{background:#eef2f8;color:#185FA5}
+.app-dialog-icon-prompt{background:#eef2f8;color:#185FA5}
+.app-dialog-title{font-size:17px;font-weight:600;color:#1a1a1a;margin-bottom:8px;line-height:1.3}
+.app-dialog-message{font-size:13px;color:#555;line-height:1.55;white-space:pre-wrap;margin-bottom:16px;text-align:left}
+.app-dialog-input{margin:0 0 14px}
+.app-dialog-actions{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #f0f0ee;padding-top:14px;margin-top:6px}
+.app-dialog-actions .btn{padding:8px 18px;font-size:13px}
+.app-dialog-confirm-danger{background:#A32D2D;color:#fff;border-color:#A32D2D;font-weight:600}
+.app-dialog-confirm-danger:hover{background:#7d1f1f;border-color:#7d1f1f}
+.app-dialog-confirm-warn{background:#A36B17;color:#fff;border-color:#A36B17;font-weight:600}
+.app-dialog-confirm-warn:hover{background:#7d4f0f;border-color:#7d4f0f}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -630,10 +653,10 @@ function populateCatSelect(id){
   if(prev && state.categories.includes(prev)) el.value=prev;
   el.onchange=async function(){
     if(this.value!=='__add__')return;
-    const name=(prompt('New category name:')||'').trim();
+    const name=((await promptDialog({title:'New category',placeholder:'e.g. Bearings, Inks, Seals...',confirmText:'Add'}))||'').trim();
     if(!name){populateCatSelect(id);return;}
     if(state.categories.some(c=>c.toLowerCase()===name.toLowerCase())){
-      alert('Category already exists');
+      await warnDialog('Category already exists','That category is already in the list — selecting it.');
       this.value=state.categories.find(c=>c.toLowerCase()===name.toLowerCase());
       return;
     }
@@ -642,7 +665,7 @@ function populateCatSelect(id){
       await loadAll();
       populateCatSelect(id);
       document.getElementById(id).value=name;
-    }catch(e){alert(e.message);populateCatSelect(id);}
+    }catch(e){await errorDialog('Could not add category',e.message);populateCatSelect(id);}
   };
 }
 // Multi-select machine list rendered as a scrollable checkbox box.
@@ -681,11 +704,10 @@ function parseMachines(s){
 }
 
 async function addMachineInline(targetId){
-  const name=(prompt('New machine name:')||'').trim();
+  const name=((await promptDialog({title:'New machine / equipment',placeholder:'e.g. Heidelberg Press, Komori 8-Color...',confirmText:'Add'}))||'').trim();
   if(!name)return;
   if(state.machines.some(m=>m.toLowerCase()===name.toLowerCase())){
-    alert('Machine already exists');
-    // Auto-tick it for convenience
+    await warnDialog('Machine already exists','That machine is already in the list — selecting it.');
     const existing=state.machines.find(m=>m.toLowerCase()===name.toLowerCase());
     const current=parseMachines(getMachineMultiValue(targetId));
     if(!current.some(c=>c.toLowerCase()===existing.toLowerCase())){
@@ -697,11 +719,10 @@ async function addMachineInline(targetId){
   try{
     await apiFetch('/api/machines','POST',{name,module:state.module});
     state.machines.push(name);state.machines.sort();
-    // Pre-tick the new machine
     const current=parseMachines(getMachineMultiValue(targetId));
     current.push(name);
     populateMachineSelect(targetId,current.join(', '));
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not add machine',e.message);}
 }
 // ---- Part combobox (Stock In / Stock Out) ----
 const _comboInited=new Set();
@@ -947,7 +968,7 @@ function applyDatePreset(type,preset){
   updCount(type);
   if(inRange===0){
     const labels={today:'Today',week:'This Week',month:'This Month',lastmonth:'Last Month',year:'This Year'};
-    alert('No entries found for '+(labels[preset]||preset)+'.');
+    infoDialog('No matches','No entries found for '+(labels[preset]||preset)+'.');
   }
 }
 
@@ -968,7 +989,7 @@ function updCount(type){
 function doPrint(){
   const idxs=[];
   document.querySelectorAll('.sel-chk-print:checked').forEach(c=>idxs.push(parseInt(c.dataset.i)));
-  if(!idxs.length){alert('Please select at least one entry to print.');return;}
+  if(!idxs.length){warnDialog('Nothing selected','Please select at least one entry to print.');return;}
   const sec=_activeSection;
   const data=getSectionData(sec);
   const headers=getHeaders(sec);
@@ -979,7 +1000,7 @@ function doPrint(){
     return'<tr>'+cells.map((c,ci)=>`<td style="${ci===0?'color:#aaa;width:32px;':''}">${c}</td>`).join('')+'</tr>';
   }).join('');
   const win=window.open('','_blank','width=900,height=700');
-  if(!win){alert('Please allow popups for printing.');return;}
+  if(!win){warnDialog('Pop-up blocked','Please allow pop-ups in your browser to print.');return;}
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${titleMap[sec]||sec}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -1013,7 +1034,7 @@ function doPrint(){
 function doExport(){
   const idxs=[];
   document.querySelectorAll('.sel-chk-export:checked').forEach(c=>idxs.push(parseInt(c.dataset.i)));
-  if(!idxs.length){alert('Please select at least one entry to export.');return;}
+  if(!idxs.length){warnDialog('Nothing selected','Please select at least one entry to export.');return;}
   const sec=_activeSection;
   const data=getSectionData(sec);
   const headers=getHeaders(sec);
@@ -1050,6 +1071,73 @@ function doExport(){
   closeModal('export');
 }
 
+// ---- Branded dialogs (replace native alert/confirm/prompt) ----
+function _escHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function showDialog(opts){
+  return new Promise(resolve=>{
+    const variant=opts.variant||'info';
+    const icons={danger:'ti-alert-triangle',warn:'ti-alert-triangle',confirm:'ti-help',success:'ti-circle-check',error:'ti-x',info:'ti-info-circle',prompt:'ti-pencil'};
+    const ov=document.createElement('div');
+    ov.className='app-dialog-overlay';
+    ov.innerHTML=`<div class="app-dialog" role="dialog" aria-modal="true">
+      <div class="app-dialog-icon app-dialog-icon-${variant}"><i class="ti ${icons[variant]||'ti-info-circle'}"></i></div>
+      <div class="app-dialog-title">${_escHtml(opts.title||'')}</div>
+      ${opts.message?`<div class="app-dialog-message">${_escHtml(opts.message)}</div>`:''}
+      ${opts.prompt?`<input type="text" class="app-dialog-input" placeholder="${_escHtml(opts.placeholder||'')}" value="${_escHtml(opts.defaultValue||'')}">`:''}
+      <div class="app-dialog-actions">
+        ${opts.showCancel?`<button class="btn app-dialog-cancel">${_escHtml(opts.cancelText||'Cancel')}</button>`:''}
+        <button class="btn app-dialog-confirm ${opts.confirmCls||'btn-primary'}">${_escHtml(opts.confirmText||'OK')}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(()=>ov.classList.add('open'));
+    const input=ov.querySelector('.app-dialog-input');
+    const confirmBtn=ov.querySelector('.app-dialog-confirm');
+    const cancelBtn=ov.querySelector('.app-dialog-cancel');
+    function cleanup(val){
+      ov.classList.remove('open');
+      document.removeEventListener('keydown',onKey,true);
+      setTimeout(()=>ov.remove(),200);
+      resolve(val);
+    }
+    function onKey(e){
+      if(e.key==='Enter'){e.preventDefault();e.stopPropagation();confirmBtn.click();}
+      else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();(cancelBtn||confirmBtn).click();}
+    }
+    confirmBtn.onclick=()=>cleanup(opts.prompt?((input&&input.value!=null)?input.value:''):true);
+    if(cancelBtn)cancelBtn.onclick=()=>cleanup(opts.prompt?null:false);
+    ov.onclick=e=>{if(e.target===ov)cleanup(opts.prompt?null:false);};
+    document.addEventListener('keydown',onKey,true);
+    setTimeout(()=>{(input||confirmBtn).focus();if(input)input.select();},60);
+  });
+}
+
+function alertDialog(opts){
+  if(typeof opts==='string')opts={title:opts};
+  const v=opts.variant||'info';
+  const cls=(v==='danger'||v==='error')?'app-dialog-confirm-danger':(v==='warn'?'app-dialog-confirm-warn':'btn-primary');
+  return showDialog({title:opts.title||'',message:opts.message||'',variant:v,confirmText:opts.confirmText||'OK',confirmCls:cls});
+}
+
+function confirmDialog(opts){
+  if(typeof opts==='string')opts={title:opts};
+  const v=opts.variant||'confirm';
+  const cls=v==='danger'?'app-dialog-confirm-danger':(v==='warn'?'app-dialog-confirm-warn':'btn-primary');
+  return showDialog({title:opts.title||'Are you sure?',message:opts.message||'',variant:v,showCancel:true,confirmText:opts.confirmText||'Confirm',cancelText:opts.cancelText||'Cancel',confirmCls:cls});
+}
+
+function promptDialog(opts){
+  if(typeof opts==='string')opts={title:opts};
+  return showDialog({title:opts.title||'',message:opts.message||'',variant:'prompt',prompt:true,showCancel:true,placeholder:opts.placeholder||'',defaultValue:opts.defaultValue||'',confirmText:opts.confirmText||'OK',cancelText:opts.cancelText||'Cancel',confirmCls:'btn-primary'});
+}
+
+// Shortcut helpers
+const warnDialog=(title,message)=>alertDialog({title,message,variant:'warn'});
+const errorDialog=(title,message)=>alertDialog({title,message,variant:'error'});
+const successDialog=(title,message)=>alertDialog({title,message,variant:'success'});
+const infoDialog=(title,message)=>alertDialog({title,message,variant:'info'});
+
 // ---- CRUD ----
 // Local-state refresh: re-render without hitting the network.
 function refresh(){window._balCache=null;renderAll();}
@@ -1057,7 +1145,7 @@ function refresh(){window._balCache=null;renderAll();}
 async function savePart(){
   const sku=document.getElementById('f-part-sku').value.trim();
   const name=document.getElementById('f-part-name').value.trim();
-  if(!name)return alert('Part name is required');
+  if(!name){await warnDialog('Part name required','Enter a name for this part.');return;}
   const qty=parseInt(document.getElementById('f-part-qty').value)||0;
   const fields=['f-part-sku','f-part-name','f-part-qty','f-part-min','f-part-desc'];
 
@@ -1065,22 +1153,20 @@ async function savePart(){
     if(qty>0){
       try{
         const txn=await apiFetch('/api/transactions','POST',{type:'in',partId:existing.id,qty,date:today(),ref:'Added to existing',notes:'Qty added (matched by SKU)'});
-        // Local patch only if the existing part is in our current module's loaded list
         const p=state.parts.find(x=>x.id===existing.id);
         if(p){p.qty+=qty;state.transactions.unshift(txn);}
-      }catch(e){return alert(e.message);}
+      }catch(e){await errorDialog('Could not add qty',e.message);return;}
     }
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
     refresh();
   }
 
-  // Only check for SKU duplicates if an SKU was actually entered
   const local=sku?state.parts.find(p=>(p.sku||'').toLowerCase()===sku.toLowerCase()):null;
   if(local){
-    const msg='SKU "'+local.sku+'" already exists as "'+local.name+'" ('+local.qty+' '+local.unit+' on hand).\n\n'
+    const msg='Existing part: "'+local.name+'" — '+local.qty+' '+local.unit+' on hand.\n\n'
       +(qty>0?'Add '+qty+' '+local.unit+' to this existing part?':'Open it instead of creating a new one?');
-    if(!confirm(msg))return;
+    if(!await confirmDialog({title:'SKU "'+local.sku+'" already exists',message:msg,confirmText:qty>0?'Add to existing':'OK',variant:'confirm'}))return;
     return mergeIntoExisting(local);
   }
 
@@ -1104,24 +1190,22 @@ async function savePart(){
     fields.forEach(id=>document.getElementById(id).value='');
     refresh();
   }catch(e){
-    // Server says this SKU already exists (likely in the OTHER module)
     if(e.status===409 && e.data && e.data.existing){
       const ex=e.data.existing;
       const sameMod=ex.module===state.module;
       const modLabel=MODULE_LABEL[ex.module]||ex.module;
       if(sameMod){
-        if(confirm('SKU "'+ex.sku+'" already exists as "'+ex.name+'".\n\n'+(qty>0?'Add '+qty+' '+ex.unit+' to it?':'OK to skip creating a duplicate?'))){
+        if(await confirmDialog({title:'SKU "'+ex.sku+'" already exists',message:'Existing part: "'+ex.name+'".\n\n'+(qty>0?'Add '+qty+' '+ex.unit+' to it?':'OK to skip creating a duplicate?'),confirmText:qty>0?'Add to existing':'OK',variant:'confirm'})){
           return mergeIntoExisting(ex);
         }
         return;
       }
-      // Cross-module collision
-      if(confirm('SKU "'+ex.sku+'" already exists in '+modLabel+' as "'+ex.name+'".\n\n'+(qty>0?'Add '+qty+' '+ex.unit+' to that existing part instead?':'OK to cancel and use it from that module?'))){
+      if(await confirmDialog({title:'SKU exists in '+modLabel,message:'"'+ex.name+'" already uses this SKU in '+modLabel+'.\n\n'+(qty>0?'Add '+qty+' '+ex.unit+' to that existing part instead?':'Switch to that module to use it?'),confirmText:qty>0?'Add to existing':'OK',variant:'confirm'})){
         return mergeIntoExisting(ex);
       }
       return;
     }
-    alert(e.message);
+    await errorDialog('Could not save part',e.message);
   }
 }
 
@@ -1129,9 +1213,9 @@ async function saveStockIn(){
   const partId=parseInt(document.getElementById('f-in-part').value);
   const qty=parseInt(document.getElementById('f-in-qty').value);
   const date=document.getElementById('f-in-date').value;
-  if(!partId)return alert('Please select a part');
-  if(!qty||qty<1)return alert('Enter a valid quantity');
-  if(!date)return alert('Date is required');
+  if(!partId){await warnDialog('Pick a part','Please select a part from the list.');return;}
+  if(!qty||qty<1){await warnDialog('Quantity required','Enter a valid quantity (1 or more).');return;}
+  if(!date){await warnDialog('Date required','Please choose a date.');return;}
   try{
     const txn=await apiFetch('/api/transactions','POST',{
       type:'in',partId,qty,date,
@@ -1144,7 +1228,7 @@ async function saveStockIn(){
     closeModal('addIn');
     ['f-in-qty','f-in-supplier','f-in-notes'].forEach(id=>document.getElementById(id).value='');
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not record stock in',e.message);}
 }
 
 async function saveStockOut(){
@@ -1152,10 +1236,10 @@ async function saveStockOut(){
   const qty=parseInt(document.getElementById('f-out-qty').value);
   const date=document.getElementById('f-out-date').value;
   const issuedTo=document.getElementById('f-out-issued').value.trim();
-  if(!partId)return alert('Please select a part');
-  if(!qty||qty<1)return alert('Enter a valid quantity');
-  if(!date)return alert('Date is required');
-  if(!issuedTo)return alert('Issued To is required');
+  if(!partId){await warnDialog('Pick a part','Please select a part from the list.');return;}
+  if(!qty||qty<1){await warnDialog('Quantity required','Enter a valid quantity (1 or more).');return;}
+  if(!date){await warnDialog('Date required','Please choose a date.');return;}
+  if(!issuedTo){await warnDialog('Issued To required','Enter the person, department, or machine receiving the item.');return;}
   try{
     const txn=await apiFetch('/api/transactions','POST',{
       type:'out',partId,qty,date,issuedTo,
@@ -1167,43 +1251,43 @@ async function saveStockOut(){
     closeModal('addOut');
     ['f-out-qty','f-out-issued','f-out-purpose'].forEach(id=>document.getElementById(id).value='');
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not record stock out',e.message);}
 }
 
 async function saveCat(){
   const name=document.getElementById('f-cat-name').value.trim();
-  if(!name)return alert('Category name required');
-  if(state.categories.includes(name))return alert('Already exists');
+  if(!name){await warnDialog('Category name required','Enter a name for this category.');return;}
+  if(state.categories.includes(name)){await warnDialog('Already exists','A category with that name is already in the list.');return;}
   try{
     await apiFetch('/api/categories','POST',{name,module:state.module});
     state.categories.push(name);state.categories.sort();
     closeModal('addCat');
     document.getElementById('f-cat-name').value='';
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not add category',e.message);}
 }
 
 async function saveMachine(){
   const name=document.getElementById('f-machine-name').value.trim();
-  if(!name)return alert('Machine name required');
-  if(state.machines.some(m=>m.toLowerCase()===name.toLowerCase()))return alert('Machine already exists');
+  if(!name){await warnDialog('Machine name required','Enter a name for this machine.');return;}
+  if(state.machines.some(m=>m.toLowerCase()===name.toLowerCase())){await warnDialog('Already exists','A machine with that name is already in the list.');return;}
   try{
     await apiFetch('/api/machines','POST',{name,module:state.module});
     state.machines.push(name);state.machines.sort();
     closeModal('addMachine');
     document.getElementById('f-machine-name').value='';
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not add machine',e.message);}
 }
 
 async function deleteMachine(name){
-  if(state.parts.some(p=>parseMachines(p.machine).includes(name)))return alert('Cannot delete: parts are assigned to this machine. Reassign them first.');
-  if(!confirm('Delete machine "'+name+'"?'))return;
+  if(state.parts.some(p=>parseMachines(p.machine).includes(name))){await warnDialog('Cannot delete machine','Parts are still assigned to this machine. Reassign them first.');return;}
+  if(!await confirmDialog({title:'Delete machine "'+name+'"?',message:'It will be removed from the list. Existing parts that referenced it are unaffected.',variant:'danger',confirmText:'Delete'}))return;
   try{
     await apiFetch('/api/machines?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
     state.machines=state.machines.filter(m=>m!==name);
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not delete machine',e.message);}
 }
 
 function openEditPart(id){
@@ -1226,7 +1310,7 @@ async function updatePart(){
   const id=parseInt(document.getElementById('f-edit-id').value);
   const sku=document.getElementById('f-edit-sku').value.trim();
   const name=document.getElementById('f-edit-name').value.trim();
-  if(!name)return alert('Part name required');
+  if(!name){await warnDialog('Part name required','Enter a name for this part.');return;}
   try{
     const qtyRaw=document.getElementById('f-edit-qty').value;
     const qty=qtyRaw===''?undefined:Math.max(0,parseInt(qtyRaw)||0);
@@ -1240,7 +1324,6 @@ async function updatePart(){
       desc:document.getElementById('f-edit-desc').value.trim()
     };
     await apiFetch('/api/parts','PUT',payload);
-    // Patch the matching part locally
     const p=state.parts.find(x=>x.id===id);
     if(p){
       p.sku=sku||null;p.name=name;p.category=payload.category;p.machine=payload.machine;
@@ -1249,42 +1332,39 @@ async function updatePart(){
     }
     closeModal('editPart');
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not update part',e.message);}
 }
 
 async function deletePart(id){
-  if(!confirm('Move this part to Trash?\n\nIt will be permanently deleted after 7 days. You can restore it from the Trash page before then.'))return;
+  if(!await confirmDialog({title:'Move this part to Trash?',message:'It will be permanently deleted after 7 days. You can restore it from the Trash page before then.',variant:'danger',confirmText:'Move to Trash'}))return;
   try{
     await apiFetch('/api/parts?id='+id,'DELETE');
-    // Move it locally to trash
     const idx=state.parts.findIndex(p=>p.id===id);
     if(idx>=0){
       const p=state.parts.splice(idx,1)[0];
       const now=new Date();
       const purge=new Date(now.getTime()+7*86400000);
       state.trash.unshift({...p,deletedAt:now.toISOString(),purgeAt:purge.toISOString()});
-      // Hide this part's transactions from the active log (server already excludes them)
       state.transactions=state.transactions.filter(t=>t.partId!==id);
     }
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not delete part',e.message);}
 }
 
 async function restoreTrashPart(id){
   try{
     await apiFetch('/api/trash','POST',{id});
-    // Full reload here — we need the part's transactions back, which require a server fetch
     await loadAll();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not restore part',e.message);}
 }
 
 async function purgeTrashPart(id){
-  if(!confirm('Permanently delete this part and all its transaction records? This cannot be undone.'))return;
+  if(!await confirmDialog({title:'Permanently delete this part?',message:'The part and all its transaction records will be gone for good. This cannot be undone.',variant:'danger',confirmText:'Delete forever'}))return;
   try{
     await apiFetch('/api/trash?id='+id,'DELETE');
     state.trash=state.trash.filter(p=>p.id!==id);
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not delete part',e.message);}
 }
 
 function toggleAllTxns(kind,checked){
@@ -1309,15 +1389,28 @@ async function bulkDeleteTxns(kind,historyOnly){
   const ids=Array.from(document.querySelectorAll('.txn-chk-'+kind+':checked')).map(c=>parseInt(c.dataset.id));
   if(!ids.length)return;
   const label=kind==='in'?'stock in':(kind==='out'?'stock out':'transaction');
-  const msg=historyOnly
-    ? '⚠ PERMANENTLY DELETE '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+' FROM HISTORY?\n\n• Current stock quantities WILL NOT be adjusted (use this for cleaning up old records where stock has already settled).\n• The records will be gone from Stock In / Out / Issuance views.\n• An entry is written to the Activity Log so you can see what was purged.\n\nThis cannot be undone. Continue?'
-    : 'Reverse '+ids.length+' '+label+' record'+(ids.length===1?'':'s')+'?\n\nQty changes will be undone and the records removed. Cannot be undone.';
-  if(!confirm(msg))return;
+  const plural=ids.length===1?'':'s';
+  let confirmed;
+  if(historyOnly){
+    confirmed=await confirmDialog({
+      title:'Permanently delete '+ids.length+' record'+plural+' from history?',
+      message:'• Current stock quantities will NOT be adjusted (use this for cleaning up old records).\n• The records will be gone from Stock In / Out / Issuance views.\n• An entry is written to the Activity Log so you can see what was purged.\n\nThis cannot be undone.',
+      variant:'danger',
+      confirmText:'Delete from History'
+    });
+  } else {
+    confirmed=await confirmDialog({
+      title:'Reverse '+ids.length+' '+label+' record'+plural+'?',
+      message:'Qty changes will be undone and the records removed. This cannot be undone.',
+      variant:'warn',
+      confirmText:'Reverse'
+    });
+  }
+  if(!confirmed)return;
   try{
     await apiFetch('/api/transactions','DELETE',{ids,historyOnly:!!historyOnly});
     const delSet=new Set(ids);
     if(!historyOnly){
-      // Reverse qty locally for each deleted txn
       state.transactions.forEach(t=>{
         if(delSet.has(t.id)){
           const p=state.parts.find(x=>x.id===t.partId);
@@ -1327,31 +1420,35 @@ async function bulkDeleteTxns(kind,historyOnly){
     }
     state.transactions=state.transactions.filter(t=>!delSet.has(t.id));
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not delete records',e.message);}
 }
 
 async function deleteTxn(id){
   const t=state.transactions.find(x=>x.id===id);
   if(!t)return;
-  if(!confirm('Reverse this '+(t.type==='in'?'stock in':'stock out')+' record?\n\nThe qty change will be undone and the record removed.\nUse "Delete from History" instead if you only want to clean up old records without touching stock.'))return;
+  if(!await confirmDialog({
+    title:'Reverse this '+(t.type==='in'?'stock in':'stock out')+' record?',
+    message:'The qty change will be undone and the record removed.\n\nUse "Delete from History" instead if you only want to clean up old records without touching stock.',
+    variant:'warn',
+    confirmText:'Reverse'
+  }))return;
   try{
     await apiFetch('/api/transactions?id='+id,'DELETE');
-    // Reverse qty locally
     const p=state.parts.find(x=>x.id===t.partId);
     if(p)p.qty+=t.type==='in'?-t.qty:t.qty;
     state.transactions=state.transactions.filter(x=>x.id!==id);
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not reverse record',e.message);}
 }
 
 async function deleteCat(name){
-  if(state.parts.some(p=>p.category===name))return alert('Cannot delete: parts are using this category. Reassign them first.');
-  if(!confirm('Delete category "'+name+'"?'))return;
+  if(state.parts.some(p=>p.category===name)){await warnDialog('Cannot delete category','Parts are still using this category. Reassign them first.');return;}
+  if(!await confirmDialog({title:'Delete category "'+name+'"?',message:'It will be removed from the dropdown for future parts.',variant:'danger',confirmText:'Delete'}))return;
   try{
     await apiFetch('/api/categories?module='+encodeURIComponent(state.module)+'&name='+encodeURIComponent(name),'DELETE');
     state.categories=state.categories.filter(c=>c!==name);
     refresh();
-  }catch(e){alert(e.message);}
+  }catch(e){await errorDialog('Could not delete category',e.message);}
 }
 
 // ---- RENDER ----
