@@ -1887,7 +1887,7 @@ async function removeUser(id,name){
 async function resetUserPassword(id,name){
   if(!await confirmDialog({title:'Generate password-reset link for '+name+'?',message:'A one-time link will be created. Send it to the user yourself (WhatsApp, email, etc). It expires in 24 hours.',confirmText:'Generate link'}))return;
   try{
-    const data=await apiFetch('/api/users/reset?id='+id,'POST');
+    const data=await apiFetch('/api/users?action=reset&id='+id,'POST');
     const url=window.location.origin+'/?reset='+encodeURIComponent(data.token);
     await showSetupLinkDialog(url,data.expiresInHours,name,'','reset');
   }catch(e){await errorDialog('Could not generate link',e.message);}

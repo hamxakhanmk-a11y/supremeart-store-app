@@ -34,6 +34,28 @@ module.exports = async (req, res) => {
       return res.json(rows);
     }
 
+    if (req.method === 'POST' && req.query.action === 'reset') {
+      // Generate a fresh 24-hour password-reset token for an existing user.
+      const id = parseInt(req.query.id);
+      if (!id) return res.status(400).json({ error: 'User id required' });
+      const target = await sql`SELECT id, email, name FROM users WHERE id = ${id} LIMIT 1`;
+      if (!target.length) return res.status(404).json({ error: 'User not found' });
+      const t = target[0];
+      const token = generateSetupToken();
+      const resetHours = 24;
+      const expiresAt = new Date(Date.now() + resetHours * 60 * 60 * 1000);
+      await sql`
+        INSERT INTO setup_tokens (token, user_id, purpose, expires_at, created_by_user_id)
+        VALUES (${token}, ${id}, 'reset', ${expiresAt.toISOString()}, ${user.id})
+      `;
+      await logActivity({
+        action: 'password_reset_link_generated',
+        summary: `Generated a password-reset link for "${t.name}" (${t.email})`,
+        details: { userId: id, email: t.email, byUserId: user.id, byUserName: user.name }
+      });
+      return res.json({ token, expiresAt: expiresAt.toISOString(), expiresInHours: resetHours });
+    }
+
     if (req.method === 'POST') {
       // Invite (create) a new user. Returns a setup link.
       const body = await parseBody(req);
