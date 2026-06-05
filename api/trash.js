@@ -1,10 +1,10 @@
 const { sql, ensureTables, parseBody, normalizeModule, purgeOldTrash, TRASH_RETENTION_DAYS } = require('../lib/db');
-const { requireAuth } = require('../lib/auth');
+const { requireByMethod } = require('../lib/auth');
 
 module.exports = async (req, res) => {
   try {
     await ensureTables();
-    const _user = await requireAuth(req, res);
+    const _user = await requireByMethod(req, res);
     if (!_user) return;
     await purgeOldTrash();
 

@@ -1,10 +1,10 @@
 const { sql, ensureTables, normalizeModule } = require('../lib/db');
-const { requireAuth } = require('../lib/auth');
+const { requireRead } = require('../lib/auth');
 
 module.exports = async (req, res) => {
   try {
     await ensureTables();
-    const _user = await requireAuth(req, res);
+    const _user = await requireRead(req, res);
     if (!_user) return;
 
     if (req.method === 'GET') {

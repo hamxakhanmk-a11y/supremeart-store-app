@@ -157,6 +157,16 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .user-name{font-size:13px;font-weight:600;color:#1a1a1a}
 .user-role{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;display:block}
 .user-avatar{width:36px;height:36px;border-radius:50%;background:#185FA5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0}
+/* Role gates */
+body.role-ceo .write-only{display:none!important}
+body:not(.role-admin) .admin-only{display:none!important}
+.role-tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.role-tag-admin{background:#eef2f8;color:#185FA5}
+.role-tag-user{background:#eaf3de;color:#2d6a10}
+.role-tag-ceo{background:#fdf4e3;color:#854F0B}
+.user-row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.user-row-actions select{padding:5px 8px;font-size:12px;width:auto;min-width:80px}
+.invite-link-box{background:#f5f7fa;border:1px solid #e8e8e6;border-radius:8px;padding:10px;font-family:monospace;font-size:11px;word-break:break-all;color:#185FA5;margin:8px 0 14px;line-height:1.5}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -200,6 +210,17 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
       <button type="submit" class="btn btn-primary auth-submit">Create Admin Account</button>
     </form>
 
+    <!-- SET PASSWORD form (invited / password-reset) -->
+    <form class="auth-form" id="auth-setpw-form" style="display:none" onsubmit="event.preventDefault();submitSetPassword()">
+      <div class="auth-title" id="setpw-title">Set your password</div>
+      <div class="auth-sub" id="setpw-sub">Welcome! Choose a password to finish setting up your account.</div>
+      <div class="auth-error" id="setpw-error"></div>
+      <div class="form-group"><label class="form-label">Email</label><input id="setpw-email" type="email" disabled></div>
+      <div class="form-group"><label class="form-label">New password *</label><input id="setpw-pw" type="password" placeholder="At least 8 characters" required minlength="8"></div>
+      <div class="form-group"><label class="form-label">Confirm password *</label><input id="setpw-pw2" type="password" placeholder="Repeat password" required minlength="8"></div>
+      <button type="submit" class="btn btn-primary auth-submit">Save Password &amp; Sign In</button>
+    </form>
+
     <!-- LOGIN form (returning users) -->
     <form class="auth-form" id="auth-login-form" style="display:none" onsubmit="event.preventDefault();submitLogin()">
       <div class="auth-title">Sign in</div>
@@ -225,9 +246,10 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="nav-item" onclick="showPage('issuance',this)"><i class="ti ti-clipboard-list"></i> Issuance Log</div>
     <div class="nav-item" onclick="showPage('activity',this)"><i class="ti ti-history"></i> Activity Log</div>
     <div class="divider"></div>
-    <div class="nav-item" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
-    <div class="nav-item" onclick="showPage('machines',this)"><i class="ti ti-building-factory-2"></i> Machines</div>
-    <div class="nav-item" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
+    <div class="nav-item write-only" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
+    <div class="nav-item write-only" onclick="showPage('machines',this)"><i class="ti ti-building-factory-2"></i> Machines</div>
+    <div class="nav-item write-only" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
+    <div class="nav-item admin-only" onclick="showPage('users',this)"><i class="ti ti-users"></i> Users</div>
   </div>
 
   <div class="main">
@@ -272,7 +294,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <div class="header-actions no-print">
           <button class="btn btn-print" onclick="openPrintModal('inventory')"><i class="ti ti-printer"></i> Print</button>
           <button class="btn btn-excel" onclick="openExportModal('inventory')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
-          <button class="btn btn-primary" onclick="openModal('addPart')"><i class="ti ti-plus"></i> Add Part</button>
+          <button class="btn btn-primary write-only" onclick="openModal('addPart')"><i class="ti ti-plus"></i> Add Part</button>
         </div>
       </div>
       <div class="search-bar no-print">
@@ -295,7 +317,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <div class="header-actions no-print">
           <button class="btn btn-print" onclick="openPrintModal('stockin')"><i class="ti ti-printer"></i> Print</button>
           <button class="btn btn-excel" onclick="openExportModal('stockin')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
-          <button class="btn btn-success" onclick="openModal('addIn')"><i class="ti ti-plus"></i> Record Stock In</button>
+          <button class="btn btn-success write-only" onclick="openModal('addIn')"><i class="ti ti-plus"></i> Record Stock In</button>
         </div>
       </div>
       <div class="search-bar no-print">
@@ -306,8 +328,8 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="in-date-to" onchange="renderStockIn()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('in')">Clear</button>
         <span class="bulk-info" id="in-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
-        <button class="btn btn-sm btn-danger-strong" id="in-bulk-purge" style="display:none" onclick="bulkDeleteTxns('in',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
+        <button class="btn btn-sm btn-danger-soft write-only" id="in-bulk-delete" style="display:none" onclick="bulkDeleteTxns('in',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
+        <button class="btn btn-sm btn-danger-strong write-only" id="in-bulk-purge" style="display:none" onclick="bulkDeleteTxns('in',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -324,7 +346,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <div class="header-actions no-print">
           <button class="btn btn-print" onclick="openPrintModal('stockout')"><i class="ti ti-printer"></i> Print</button>
           <button class="btn btn-excel" onclick="openExportModal('stockout')"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
-          <button class="btn btn-danger-soft" onclick="openModal('addOut')"><i class="ti ti-plus"></i> Record Stock Out</button>
+          <button class="btn btn-danger-soft write-only" onclick="openModal('addOut')"><i class="ti ti-plus"></i> Record Stock Out</button>
         </div>
       </div>
       <div class="search-bar no-print">
@@ -335,8 +357,8 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="out-date-to" onchange="renderStockOut()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('out')">Clear</button>
         <span class="bulk-info" id="out-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-soft" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
-        <button class="btn btn-sm btn-danger-strong" id="out-bulk-purge" style="display:none" onclick="bulkDeleteTxns('out',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
+        <button class="btn btn-sm btn-danger-soft write-only" id="out-bulk-delete" style="display:none" onclick="bulkDeleteTxns('out',false)"><i class="ti ti-arrow-back-up"></i> Reverse Selected</button>
+        <button class="btn btn-sm btn-danger-strong write-only" id="out-bulk-purge" style="display:none" onclick="bulkDeleteTxns('out',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -363,7 +385,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <input type="date" id="iss-date-to" onchange="renderIssuance()" style="width:150px">
         <button class="btn btn-sm" onclick="clearLogFilters('iss')">Clear</button>
         <span class="bulk-info" id="iss-bulk-info" style="margin-left:auto"></span>
-        <button class="btn btn-sm btn-danger-strong" id="iss-bulk-purge" style="display:none" onclick="bulkDeleteTxns('iss',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
+        <button class="btn btn-sm btn-danger-strong write-only" id="iss-bulk-purge" style="display:none" onclick="bulkDeleteTxns('iss',true)"><i class="ti ti-alert-triangle"></i> Delete from History</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -377,7 +399,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="page" id="page-categories">
       <div class="page-header">
         <div class="page-title">Categories</div>
-        <button class="btn btn-primary" onclick="openModal('addCat')"><i class="ti ti-plus"></i> Add Category</button>
+        <button class="btn btn-primary write-only" onclick="openModal('addCat')"><i class="ti ti-plus"></i> Add Category</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -391,7 +413,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
     <div class="page" id="page-machines">
       <div class="page-header">
         <div class="page-title">Machines / Equipment</div>
-        <button class="btn btn-primary" onclick="openModal('addMachine')"><i class="ti ti-plus"></i> Add Machine</button>
+        <button class="btn btn-primary write-only" onclick="openModal('addMachine')"><i class="ti ti-plus"></i> Add Machine</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
@@ -411,6 +433,20 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
         <table>
           <thead><tr><th style="width:160px">When</th><th style="width:130px">Action</th><th>Details</th></tr></thead>
           <tbody id="activity-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- USERS (admin-only) -->
+    <div class="page admin-only" id="page-users">
+      <div class="page-header">
+        <div class="page-title">Authorized Users</div>
+        <button class="btn btn-primary" onclick="openInviteUserModal()"><i class="ti ti-plus"></i> Invite User</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Invited By</th><th>Last Login</th><th style="width:240px">Actions</th></tr></thead>
+          <tbody id="users-table"></tbody>
         </table>
       </div>
     </div>
@@ -535,6 +571,26 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-inviteUser">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-user-plus"></i> Invite New User</div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input id="f-invite-name" placeholder="e.g. Jawad Zaheer Khan"></div>
+    <div class="form-group"><label class="form-label">Email *</label><input id="f-invite-email" type="email" placeholder="person@example.com"></div>
+    <div class="form-group">
+      <label class="form-label">Role *</label>
+      <select id="f-invite-role">
+        <option value="user">User — can record stock movements and edit parts</option>
+        <option value="admin">Admin — full access, can manage other users</option>
+        <option value="ceo">CEO — view-only access for dashboards and reports</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('inviteUser')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitInviteUser()">Create Invite</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-editPart">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-edit"></i> Edit Part</div>
@@ -628,6 +684,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <script>
 let state = {
   user: null,
+  users: [],
   module: localStorage.getItem('activeModule') || 'machinery',
   categories: [],
   machines: [],
@@ -696,6 +753,11 @@ async function loadAll(){
     const partIds=new Set(parts.map(p=>p.id));
     state.transactions=transactions.filter(t=>partIds.has(t.partId));
   }catch(e){console.error('Failed to load data:',e);}
+  if(state.user && state.user.role==='admin'){
+    try{state.users=await apiFetch('/api/users');}catch(e){state.users=[];}
+  } else {
+    state.users=[];
+  }
   window._balCache=null;
   renderAll();
 }
@@ -1574,7 +1636,7 @@ function renderInventory(){
       <td style="font-weight:700;font-size:15px">${p.qty}</td>
       <td style="color:#888">${p.minQty}</td>
       <td><span class="badge ${s.cls}">${s.label}</span></td>
-      <td class="no-print">
+      <td class="no-print write-only">
         <button class="btn btn-icon" title="Edit" onclick="openEditPart(${p.id})"><i class="ti ti-edit"></i></button>
         <button class="btn btn-icon" title="Delete" style="color:#A32D2D;margin-left:4px" onclick="deletePart(${p.id})"><i class="ti ti-trash"></i></button>
       </td>
@@ -1634,7 +1696,7 @@ function renderStockIn(){
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.ref||'—'}</td>
     <td style="color:#888">${t.notes||'—'}</td>
-    <td class="no-print"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
+    <td class="no-print write-only"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
   </tr>`).join('');
   updateBulkInfo('in');
 }
@@ -1661,7 +1723,7 @@ function renderStockOut(){
     <td style="font-weight:600">${bal[t.id]??'—'} ${getPartUnit(t.partId)}</td>
     <td>${t.issuedTo||'—'}</td>
     <td style="color:#888">${t.purpose||'—'}</td>
-    <td class="no-print"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
+    <td class="no-print write-only"><button class="btn btn-icon" style="color:#854F0B" title="Reverse this entry" onclick="deleteTxn(${t.id})"><i class="ti ti-arrow-back-up"></i></button></td>
   </tr>`).join('');
   updateBulkInfo('out');
 }
@@ -1741,12 +1803,129 @@ function renderTrash(){
     <td style="color:#888;font-size:12px">${fmtTs(p.deletedAt)}</td>
     <td style="color:#854F0B;font-size:12px">${fmtTs(p.purgeAt)}<br><span style="color:#aaa">${daysLeft(p.purgeAt)}</span></td>
     <td>
-      <button class="btn btn-sm" onclick="restoreTrashPart(${p.id})"><i class="ti ti-arrow-back-up"></i> Restore</button>
-      <button class="btn btn-sm btn-danger-soft" onclick="purgeTrashPart(${p.id})" style="margin-left:4px"><i class="ti ti-x"></i> Delete forever</button>
+      <button class="btn btn-sm write-only" onclick="restoreTrashPart(${p.id})"><i class="ti ti-arrow-back-up"></i> Restore</button>
+      <button class="btn btn-sm btn-danger-soft write-only" onclick="purgeTrashPart(${p.id})" style="margin-left:4px"><i class="ti ti-x"></i> Delete forever</button>
     </td>
   </tr>`).join('');
 }
-function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderMachines();renderActivity();renderTrash();}
+function renderUsers(){
+  const tb=document.getElementById('users-table');
+  if(!tb)return;
+  const items=state.users||[];
+  if(!items.length){tb.innerHTML='<tr><td colspan="7"><div class="empty"><i class="ti ti-users"></i>No users yet</div></td></tr>';return;}
+  const fmtTs=ts=>{if(!ts)return'never';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
+  tb.innerHTML=items.map(u=>{
+    const isMe=state.user && u.id===state.user.id;
+    const roleOpts=['admin','user','ceo'].map(r=>`<option value="${r}" ${r===u.role?'selected':''}>${r==='ceo'?'CEO (view-only)':r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join('');
+    const status=u.hasPassword?'<span class="badge badge-ok">Active</span>':'<span class="badge badge-low">Pending invite</span>';
+    const invited=u.invitedByName?`${u.invitedByName}`:'—';
+    return`<tr>
+      <td style="font-weight:600">${u.name}${isMe?' <span class="badge badge-in" style="margin-left:6px">You</span>':''}</td>
+      <td style="color:#555">${u.email}</td>
+      <td>${isMe?`<span class="role-tag role-tag-${u.role}">${u.role==='ceo'?'CEO':u.role}</span>`:`<select onchange="changeUserRole(${u.id},this.value,'${u.role}')">${roleOpts}</select>`}</td>
+      <td>${status}</td>
+      <td style="color:#555">${invited}</td>
+      <td style="color:#888;font-size:12px">${fmtTs(u.lastLoginAt)}</td>
+      <td>
+        <div class="user-row-actions">
+          ${isMe?'':`<button class="btn btn-sm" title="Generate password-reset link" onclick="resetUserPassword(${u.id},'${u.name.replace(/'/g,"\\'")}')"><i class="ti ti-key"></i> Reset PW</button>`}
+          ${isMe?'':`<button class="btn btn-sm btn-danger-soft" onclick="removeUser(${u.id},'${u.name.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i> Remove</button>`}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openInviteUserModal(){
+  document.getElementById('f-invite-name').value='';
+  document.getElementById('f-invite-email').value='';
+  document.getElementById('f-invite-role').value='user';
+  openModal('inviteUser');
+}
+
+async function submitInviteUser(){
+  const name=document.getElementById('f-invite-name').value.trim();
+  const email=document.getElementById('f-invite-email').value.trim();
+  const role=document.getElementById('f-invite-role').value;
+  if(!name){await warnDialog('Name required','Enter the new user’s name.');return;}
+  if(!email){await warnDialog('Email required','Enter the new user’s email.');return;}
+  try{
+    const data=await apiFetch('/api/users','POST',{name,email,role});
+    closeModal('inviteUser');
+    const url=window.location.origin+'/?setup='+encodeURIComponent(data.setupToken);
+    await showSetupLinkDialog(url,data.expiresInHours,name,email,'invite');
+    // refresh users list
+    try{state.users=await apiFetch('/api/users');renderUsers();}catch(e){}
+  }catch(e){await errorDialog('Could not invite user',e.message);}
+}
+
+async function changeUserRole(id,newRole,oldRole){
+  if(newRole===oldRole)return;
+  const ok=await confirmDialog({title:'Change role to '+(newRole==='ceo'?'CEO (view-only)':newRole)+'?',message:'The user’s permissions take effect on their next request.',confirmText:'Change role'});
+  if(!ok){
+    // revert dropdown
+    try{state.users=await apiFetch('/api/users');renderUsers();}catch(e){}
+    return;
+  }
+  try{
+    await apiFetch('/api/users?id='+id,'PUT',{role:newRole});
+    state.users=await apiFetch('/api/users');renderUsers();
+  }catch(e){
+    await errorDialog('Could not change role',e.message);
+    try{state.users=await apiFetch('/api/users');renderUsers();}catch(_){}
+  }
+}
+
+async function removeUser(id,name){
+  if(!await confirmDialog({title:'Remove '+name+'?',message:'They will no longer be able to sign in. Their past activity records stay in the log.',variant:'danger',confirmText:'Remove user'}))return;
+  try{
+    await apiFetch('/api/users?id='+id,'DELETE');
+    state.users=await apiFetch('/api/users');renderUsers();
+  }catch(e){await errorDialog('Could not remove user',e.message);}
+}
+
+async function resetUserPassword(id,name){
+  if(!await confirmDialog({title:'Generate password-reset link for '+name+'?',message:'A one-time link will be created. Send it to the user yourself (WhatsApp, email, etc). It expires in 24 hours.',confirmText:'Generate link'}))return;
+  try{
+    const data=await apiFetch('/api/users/reset?id='+id,'POST');
+    const url=window.location.origin+'/?reset='+encodeURIComponent(data.token);
+    await showSetupLinkDialog(url,data.expiresInHours,name,'','reset');
+  }catch(e){await errorDialog('Could not generate link',e.message);}
+}
+
+async function showSetupLinkDialog(url,hours,name,email,purpose){
+  const intro=purpose==='reset'
+    ? 'Send this one-time link to <b>'+_escHtml(name)+'</b>. They’ll click it to set a new password.'
+    : '<b>'+_escHtml(name)+'</b>'+(email?' ('+_escHtml(email)+')':'')+' has been added. Send this one-time setup link so they can choose a password.';
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');
+    ov.className='app-dialog-overlay';
+    ov.innerHTML=`<div class="app-dialog" style="text-align:left;width:520px;max-width:96vw">
+      <div class="app-dialog-icon app-dialog-icon-success" style="margin-left:auto;margin-right:auto"><i class="ti ti-circle-check"></i></div>
+      <div class="app-dialog-title" style="text-align:center">${purpose==='reset'?'Password reset link ready':'Invitation created'}</div>
+      <div class="app-dialog-message">${intro}<br><br>Link expires in <b>${hours} hours</b>.</div>
+      <div class="invite-link-box" id="invite-link-box">${_escHtml(url)}</div>
+      <div class="app-dialog-actions">
+        <button class="btn app-dialog-cancel">Close</button>
+        <button class="btn btn-primary app-dialog-confirm"><i class="ti ti-copy"></i> Copy Link</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(()=>ov.classList.add('open'));
+    const copyBtn=ov.querySelector('.app-dialog-confirm');
+    const closeBtn=ov.querySelector('.app-dialog-cancel');
+    function cleanup(){ov.classList.remove('open');setTimeout(()=>ov.remove(),200);resolve();}
+    copyBtn.onclick=async()=>{
+      try{await navigator.clipboard.writeText(url);copyBtn.innerHTML='<i class="ti ti-check"></i> Copied!';}
+      catch(e){copyBtn.innerHTML='<i class="ti ti-x"></i> Copy failed';}
+      setTimeout(()=>copyBtn.innerHTML='<i class="ti ti-copy"></i> Copy Link',2000);
+    };
+    closeBtn.onclick=cleanup;
+    ov.onclick=e=>{if(e.target===ov)cleanup();};
+  });
+}
+
+function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderMachines();renderActivity();renderTrash();renderUsers();}
 
 // ---- AUTH ----
 function applyModuleToUI(){
@@ -1758,7 +1937,10 @@ function applyModuleToUI(){
 
 function renderUserBar(){
   const bar=document.getElementById('user-bar');
+  // Apply / clear role class on <body> for CSS-based UI gating
+  document.body.classList.remove('role-admin','role-user','role-ceo');
   if(!state.user){bar.style.display='none';return;}
+  document.body.classList.add('role-'+state.user.role);
   document.getElementById('user-name').textContent=state.user.name;
   document.getElementById('user-role').textContent=state.user.role||'user';
   const initials=(state.user.name||'?').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
@@ -1770,8 +1952,10 @@ function showAuthScreen(mode){
   document.getElementById('auth-screen').style.display='flex';
   document.getElementById('auth-setup-form').style.display=mode==='setup'?'block':'none';
   document.getElementById('auth-login-form').style.display=mode==='login'?'block':'none';
+  document.getElementById('auth-setpw-form').style.display=mode==='setpw'?'block':'none';
   setTimeout(()=>{
-    const focusEl=document.getElementById(mode==='setup'?'setup-name':'login-email');
+    const focusId={setup:'setup-name',login:'login-email',setpw:'setpw-pw'}[mode];
+    const focusEl=focusId?document.getElementById(focusId):null;
     if(focusEl)focusEl.focus();
   },50);
 }
@@ -1787,10 +1971,49 @@ function showAuthError(formId,message){
 }
 
 function clearAuthErrors(){
-  ['setup-error','login-error'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.classList.remove('show');}});
+  ['setup-error','login-error','setpw-error'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.classList.remove('show');}});
+}
+
+let _pendingSetupToken=null; // when user landed via setup link
+
+async function initAuthFromUrl(){
+  // Detect ?setup=TOKEN or ?reset=TOKEN
+  const params=new URLSearchParams(window.location.search);
+  const token=params.get('setup')||params.get('reset')||params.get('invite');
+  if(!token)return false;
+  _pendingSetupToken=token;
+  try{
+    const r=await fetch('/api/auth/set-password?token='+encodeURIComponent(token));
+    const data=await r.json();
+    if(!r.ok||!data.valid){
+      // Show login screen with error
+      showAuthScreen('login');
+      showAuthError('login',data.error||'This link is invalid.');
+      cleanUrl();
+      return true;
+    }
+    document.getElementById('setpw-email').value=data.email;
+    document.getElementById('setpw-title').textContent=data.purpose==='reset'?'Set a new password':'Welcome, '+data.name+'!';
+    document.getElementById('setpw-sub').textContent=data.purpose==='reset'?'Choose a new password to regain access.':'Choose a password to finish setting up your account.';
+    showAuthScreen('setpw');
+    return true;
+  }catch(e){
+    showAuthScreen('login');
+    showAuthError('login','Could not verify the link. Please try again.');
+    return true;
+  }
+}
+
+function cleanUrl(){
+  // Remove sensitive setup/reset/invite tokens from the visible URL
+  const url=new URL(window.location.href);
+  ['setup','reset','invite'].forEach(p=>url.searchParams.delete(p));
+  window.history.replaceState({},'',url.pathname+(url.search||''));
 }
 
 async function initAuth(){
+  // If user landed via ?setup=TOKEN / ?reset=TOKEN / ?invite=TOKEN, show set-password screen
+  if(await initAuthFromUrl())return;
   try{
     const r=await fetch('/api/auth/me');
     const data=await r.json();
@@ -1809,6 +2032,27 @@ async function initAuth(){
     showAuthScreen('login');
     showAuthError('login','Could not reach the server. Please try again.');
   }
+}
+
+async function submitSetPassword(){
+  clearAuthErrors();
+  const pw=document.getElementById('setpw-pw').value;
+  const pw2=document.getElementById('setpw-pw2').value;
+  if(pw!==pw2){showAuthError('setpw','Passwords do not match.');return;}
+  if(pw.length<8){showAuthError('setpw','Password must be at least 8 characters.');return;}
+  if(!_pendingSetupToken){showAuthError('setpw','Missing setup token. Please reopen the link from your invitation.');return;}
+  try{
+    const r=await fetch('/api/auth/set-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:_pendingSetupToken,password:pw})});
+    const data=await r.json();
+    if(!r.ok){showAuthError('setpw',data.error||'Could not set password.');return;}
+    state.user=data.user;
+    _pendingSetupToken=null;
+    cleanUrl();
+    hideAuthScreen();
+    renderUserBar();
+    applyModuleToUI();
+    await loadAll();
+  }catch(e){showAuthError('setpw','Network error. Please try again.');}
 }
 
 async function submitSetup(){
@@ -1851,12 +2095,8 @@ async function submitLogin(){
 async function logout(){
   if(!await confirmDialog({title:'Sign out?',message:'You will need to sign in again to access the app.',confirmText:'Sign Out',variant:'confirm'}))return;
   try{await fetch('/api/auth/logout',{method:'POST'});}catch(e){/* ignore */}
-  state.user=null;
-  // Wipe loaded data so a different account on the same machine doesn't briefly see it
-  state.categories=[];state.machines=[];state.parts=[];state.transactions=[];state.trash=[];state.activity=[];
-  renderAll();
-  renderUserBar();
-  showAuthScreen('login');
+  // Hard reload guarantees a clean state (no stale active page, no leftover data flashing)
+  window.location.href='/';
 }
 
 initAuth();
