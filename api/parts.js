@@ -108,7 +108,8 @@ module.exports = async (req, res) => {
               action: 'qty_edited',
               summary: `Edited qty of "${(partInfo.sku ? '[' + partInfo.sku + '] ' : '') + partInfo.name}": ${beforeQty} → ${qtyVal} ${partInfo.unit} (${sign}${diff})`,
               details: { partId: partInfo.id, partName: partInfo.name, partSku: partInfo.sku, beforeQty, afterQty: qtyVal, unit: partInfo.unit },
-              module: partInfo.module
+              module: partInfo.module,
+              actor: _user
             });
           }
         }

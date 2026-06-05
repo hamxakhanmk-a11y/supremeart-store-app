@@ -125,7 +125,8 @@ module.exports = async (req, res) => {
           action,
           summary,
           details: { ...t, partName: p.name, partSku: p.sku, partUnit: p.unit, historyOnly },
-          module: p.module
+          module: p.module,
+          actor: _user
         });
       }
 

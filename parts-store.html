@@ -229,6 +229,7 @@ body:not(.role-admin) .admin-only{display:none!important}
       <div class="form-group"><label class="form-label">Email *</label><input id="login-email" type="email" placeholder="you@example.com" required></div>
       <div class="form-group"><label class="form-label">Password *</label><input id="login-pw" type="password" placeholder="Your password" required></div>
       <button type="submit" class="btn btn-primary auth-submit">Sign In</button>
+      <div style="text-align:center;margin-top:14px;font-size:12px"><a href="#" onclick="event.preventDefault();showForgotPassword()" style="color:#185FA5;text-decoration:none">Forgot your password?</a></div>
     </form>
   </div>
 </div>
@@ -266,6 +267,7 @@ body:not(.role-admin) .admin-only{display:none!important}
           <span class="user-role" id="user-role"></span>
         </div>
         <div class="user-avatar" id="user-avatar"></div>
+        <button class="btn btn-sm" onclick="openModal('changePw');clearChangePwFields()" title="Change your password"><i class="ti ti-key"></i> Password</button>
         <button class="btn btn-sm" onclick="logout()" title="Sign out"><i class="ti ti-logout"></i> Logout</button>
       </div>
     </div>
@@ -427,11 +429,15 @@ body:not(.role-admin) .admin-only{display:none!important}
     <div class="page" id="page-activity">
       <div class="page-header">
         <div class="page-title">Activity Log</div>
-        <span style="font-size:12px;color:#888">Tracks deletions of stock records and silent qty edits.</span>
+        <span style="font-size:12px;color:#888">Tracks deletions, qty edits, and user management actions.</span>
+      </div>
+      <div class="search-bar no-print">
+        <select id="act-user-filter" onchange="renderActivity()" style="width:220px"></select>
+        <button class="btn btn-sm" onclick="document.getElementById('act-user-filter').value='';renderActivity()">Clear</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
-          <thead><tr><th style="width:160px">When</th><th style="width:130px">Action</th><th>Details</th></tr></thead>
+          <thead><tr><th style="width:160px">When</th><th style="width:130px">Action</th><th style="width:170px">By</th><th>Details</th></tr></thead>
           <tbody id="activity-table"></tbody>
         </table>
       </div>
@@ -571,6 +577,20 @@ body:not(.role-admin) .admin-only{display:none!important}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-changePw">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-lock"></i> Change Your Password</div>
+    <div class="form-group"><label class="form-label">Current Password *</label><input id="f-chgpw-cur" type="password" autocomplete="current-password"></div>
+    <div class="form-group"><label class="form-label">New Password *</label><input id="f-chgpw-new" type="password" placeholder="At least 8 characters" autocomplete="new-password"></div>
+    <div class="form-group"><label class="form-label">Confirm New Password *</label><input id="f-chgpw-new2" type="password" autocomplete="new-password"></div>
+    <div style="font-size:11px;color:#888;margin-top:-6px;margin-bottom:6px">All your other sessions on other devices will be signed out.</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('changePw')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitChangePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-inviteUser">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-user-plus"></i> Invite New User</div>
@@ -685,6 +705,7 @@ body:not(.role-admin) .admin-only{display:none!important}
 let state = {
   user: null,
   users: [],
+  emailConfigured: false,
   module: localStorage.getItem('activeModule') || 'machinery',
   categories: [],
   machines: [],
@@ -1776,16 +1797,41 @@ function renderMachines(){
 function renderActivity(){
   const tb=document.getElementById('activity-table');
   if(!tb)return;
-  const items=state.activity||[];
-  if(!items.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-history"></i>No activity yet</div></td></tr>';return;}
+  let items=state.activity||[];
+  // Populate user filter (unique users from the loaded log)
+  const filter=document.getElementById('act-user-filter');
+  if(filter){
+    const cur=filter.value;
+    const seen=new Map();
+    items.forEach(a=>{if(a.userId&&!seen.has(a.userId))seen.set(a.userId,a.userName||a.userEmail||('User #'+a.userId));});
+    const opts=['<option value="">All users</option>'].concat(Array.from(seen.entries()).map(([uid,name])=>`<option value="${uid}">${_escHtml(name)}</option>`));
+    filter.innerHTML=opts.join('');
+    if(cur)filter.value=cur;
+    if(cur)items=items.filter(a=>String(a.userId)===cur);
+  }
+  if(!items.length){tb.innerHTML='<tr><td colspan="4"><div class="empty"><i class="ti ti-history"></i>No activity yet</div></td></tr>';return;}
   const fmtTs=ts=>{if(!ts)return'';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
-  const actionLabel={txn_deleted:'Reversed',txn_purged:'Purged from History',qty_edited:'Qty Edited'};
-  const actionCls={txn_deleted:'badge-low',txn_purged:'badge-critical',qty_edited:'badge-low'};
-  tb.innerHTML=items.map(a=>`<tr>
-    <td style="color:#888;font-size:12px">${fmtTs(a.createdAt)}</td>
-    <td><span class="badge ${actionCls[a.action]||'badge-ok'}">${actionLabel[a.action]||a.action}</span></td>
-    <td>${a.summary}</td>
-  </tr>`).join('');
+  const actionLabel={
+    txn_deleted:'Reversed',txn_purged:'Purged from History',qty_edited:'Qty Edited',
+    user_invited:'User Invited',user_role_changed:'Role Changed',user_removed:'User Removed',
+    password_reset_link_generated:'Password Reset Link',password_reset_requested:'Forgot Password',
+    password_self_changed:'Password Changed'
+  };
+  const actionCls={
+    txn_deleted:'badge-low',txn_purged:'badge-critical',qty_edited:'badge-low',
+    user_invited:'badge-ok',user_role_changed:'badge-low',user_removed:'badge-critical',
+    password_reset_link_generated:'badge-low',password_reset_requested:'badge-low',
+    password_self_changed:'badge-ok'
+  };
+  tb.innerHTML=items.map(a=>{
+    const by=a.userName?`<div style="font-weight:600">${_escHtml(a.userName)}</div><div style="color:#888;font-size:11px">${_escHtml(a.userEmail||'')}</div>`:'<span style="color:#aaa">—</span>';
+    return `<tr>
+      <td style="color:#888;font-size:12px">${fmtTs(a.createdAt)}</td>
+      <td><span class="badge ${actionCls[a.action]||'badge-ok'}">${actionLabel[a.action]||a.action}</span></td>
+      <td>${by}</td>
+      <td>${_escHtml(a.summary)}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderTrash(){
@@ -1853,7 +1899,7 @@ async function submitInviteUser(){
     const data=await apiFetch('/api/users','POST',{name,email,role});
     closeModal('inviteUser');
     const url=window.location.origin+'/?setup='+encodeURIComponent(data.setupToken);
-    await showSetupLinkDialog(url,data.expiresInHours,name,email,'invite');
+    await showSetupLinkDialog(url,data.expiresInHours,name,email,'invite',data.emailed);
     // refresh users list
     try{state.users=await apiFetch('/api/users');renderUsers();}catch(e){}
   }catch(e){await errorDialog('Could not invite user',e.message);}
@@ -1889,14 +1935,15 @@ async function resetUserPassword(id,name){
   try{
     const data=await apiFetch('/api/users?action=reset&id='+id,'POST');
     const url=window.location.origin+'/?reset='+encodeURIComponent(data.token);
-    await showSetupLinkDialog(url,data.expiresInHours,name,'','reset');
+    await showSetupLinkDialog(url,data.expiresInHours,name,'','reset',data.emailed);
   }catch(e){await errorDialog('Could not generate link',e.message);}
 }
 
-async function showSetupLinkDialog(url,hours,name,email,purpose){
+async function showSetupLinkDialog(url,hours,name,email,purpose,emailed){
+  const emailNote=emailed?'<div style="background:#eaf3de;color:#2d6a10;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:10px"><i class="ti ti-circle-check"></i> An email was also sent.</div>':'';
   const intro=purpose==='reset'
-    ? 'Send this one-time link to <b>'+_escHtml(name)+'</b>. They’ll click it to set a new password.'
-    : '<b>'+_escHtml(name)+'</b>'+(email?' ('+_escHtml(email)+')':'')+' has been added. Send this one-time setup link so they can choose a password.';
+    ? emailNote+'Send this one-time link to <b>'+_escHtml(name)+'</b>. They’ll click it to set a new password.'
+    : emailNote+'<b>'+_escHtml(name)+'</b>'+(email?' ('+_escHtml(email)+')':'')+' has been added. Send this one-time setup link so they can choose a password.';
   return new Promise(resolve=>{
     const ov=document.createElement('div');
     ov.className='app-dialog-overlay';
@@ -2017,6 +2064,7 @@ async function initAuth(){
   try{
     const r=await fetch('/api/auth?action=me');
     const data=await r.json();
+    state.emailConfigured=!!data.emailConfigured;
     if(data.authenticated){
       state.user=data.user;
       hideAuthScreen();
@@ -2090,6 +2138,37 @@ async function submitLogin(){
     applyModuleToUI();
     await loadAll();
   }catch(e){showAuthError('login','Network error. Please try again.');}
+}
+
+function clearChangePwFields(){
+  ['f-chgpw-cur','f-chgpw-new','f-chgpw-new2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+async function submitChangePassword(){
+  const cur=document.getElementById('f-chgpw-cur').value;
+  const pw=document.getElementById('f-chgpw-new').value;
+  const pw2=document.getElementById('f-chgpw-new2').value;
+  if(!cur){await warnDialog('Current password required','Enter your current password to confirm.');return;}
+  if(pw.length<8){await warnDialog('Password too short','New password must be at least 8 characters.');return;}
+  if(pw!==pw2){await warnDialog('Passwords do not match','Retype your new password.');return;}
+  try{
+    const r=await fetch('/api/auth?action=change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:cur,newPassword:pw})});
+    const data=await r.json();
+    if(!r.ok){await errorDialog('Could not change password',data.error||'Please try again.');return;}
+    closeModal('changePw');
+    clearChangePwFields();
+    await successDialog('Password updated','Your password has been changed. Other devices have been signed out.');
+  }catch(e){await errorDialog('Network error','Please try again.');}
+}
+
+async function showForgotPassword(){
+  const email=await promptDialog({title:'Forgot password?',message:state.emailConfigured?'Enter your email and we’ll send a reset link.':'Self-service password reset is disabled (email is not configured). Please contact your admin to generate a reset link for you.',placeholder:'you@example.com',confirmText:'Send link'});
+  if(email===null)return;
+  const e=(email||'').trim();
+  if(!e)return;
+  if(!state.emailConfigured){await infoDialog('Reset sent (if registered)','If that email is registered, the admin will be notified. For now please ask them to generate a link manually.');return;}
+  try{await fetch('/api/auth?action=forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});}catch(_){/* ignore */}
+  await infoDialog('Check your inbox','If that email is registered, a reset link is on its way. The link expires in 24 hours.');
 }
 
 async function logout(){

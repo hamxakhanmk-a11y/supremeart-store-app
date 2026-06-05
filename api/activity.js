@@ -10,12 +10,23 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const mod = normalizeModule(req.query.module);
       const limit = Math.min(parseInt(req.query.limit) || 300, 1000);
-      // Include the current module's events PLUS events with NULL module
-      // (legacy or non-module-scoped entries shouldn't disappear)
+      const userId = req.query.userId ? parseInt(req.query.userId) : null;
+      if (userId) {
+        const rows = await sql`
+          SELECT id, action, summary, details, module,
+                 created_at::text AS "createdAt",
+                 user_id AS "userId", user_email AS "userEmail", user_name AS "userName"
+          FROM activity_log
+          WHERE (module = ${mod} OR module IS NULL) AND user_id = ${userId}
+          ORDER BY id DESC
+          LIMIT ${limit}
+        `;
+        return res.json(rows);
+      }
       const rows = await sql`
-        SELECT id, action, summary, details,
-               module,
-               created_at::text AS "createdAt"
+        SELECT id, action, summary, details, module,
+               created_at::text AS "createdAt",
+               user_id AS "userId", user_email AS "userEmail", user_name AS "userName"
         FROM activity_log
         WHERE module = ${mod} OR module IS NULL
         ORDER BY id DESC

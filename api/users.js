@@ -1,5 +1,12 @@
 const { sql, ensureTables, parseBody, logActivity } = require('../lib/db');
 const { requireAdmin, generateToken, ROLES } = require('../lib/auth');
+const { sendEmail, isEmailConfigured, inviteTemplate, resetTemplate } = require('../lib/email');
+
+function originFromReq(req) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return `${proto}://${host}`;
+}
 
 const SETUP_TOKEN_HOURS = 72;
 
@@ -48,12 +55,21 @@ module.exports = async (req, res) => {
         INSERT INTO setup_tokens (token, user_id, purpose, expires_at, created_by_user_id)
         VALUES (${token}, ${id}, 'reset', ${expiresAt.toISOString()}, ${user.id})
       `;
+      // Try to email it; if Resend isn't set up, the admin still gets the link in the response.
+      let emailed = false;
+      if (isEmailConfigured()) {
+        const setupUrl = `${originFromReq(req)}/?reset=${encodeURIComponent(token)}`;
+        const tpl = resetTemplate({ inviteeName: t.name, setupUrl, hours: resetHours });
+        const result = await sendEmail({ to: t.email, subject: 'Reset your Parts Store password', ...tpl });
+        emailed = result.sent;
+      }
       await logActivity({
         action: 'password_reset_link_generated',
-        summary: `Generated a password-reset link for "${t.name}" (${t.email})`,
-        details: { userId: id, email: t.email, byUserId: user.id, byUserName: user.name }
+        summary: `Generated a password-reset link for "${t.name}" (${t.email})${emailed ? ' — emailed' : ''}`,
+        details: { userId: id, email: t.email, byUserId: user.id, byUserName: user.name, emailed },
+        actor: user
       });
-      return res.json({ token, expiresAt: expiresAt.toISOString(), expiresInHours: resetHours });
+      return res.json({ token, expiresAt: expiresAt.toISOString(), expiresInHours: resetHours, emailed });
     }
 
     if (req.method === 'POST') {
@@ -85,13 +101,22 @@ module.exports = async (req, res) => {
         VALUES (${token}, ${newUser.id}, 'invite', ${expiresAt.toISOString()}, ${user.id})
       `;
 
+      let emailed = false;
+      if (isEmailConfigured()) {
+        const setupUrl = `${originFromReq(req)}/?setup=${encodeURIComponent(token)}`;
+        const tpl = inviteTemplate({ inviterName: user.name, inviteeName: name, role, setupUrl, hours: SETUP_TOKEN_HOURS });
+        const result = await sendEmail({ to: email, subject: `${user.name} invited you to Parts Store`, ...tpl });
+        emailed = result.sent;
+      }
+
       await logActivity({
         action: 'user_invited',
-        summary: `Invited "${name}" (${email}) as ${role}`,
-        details: { invitedUserId: newUser.id, email, role, byUserId: user.id, byUserName: user.name }
+        summary: `Invited "${name}" (${email}) as ${role}${emailed ? ' — emailed' : ''}`,
+        details: { invitedUserId: newUser.id, email, role, byUserId: user.id, byUserName: user.name, emailed },
+        actor: user
       });
 
-      return res.json({ user: newUser, setupToken: token, expiresAt: expiresAt.toISOString(), expiresInHours: SETUP_TOKEN_HOURS });
+      return res.json({ user: newUser, setupToken: token, expiresAt: expiresAt.toISOString(), expiresInHours: SETUP_TOKEN_HOURS, emailed });
     }
 
     if (req.method === 'PUT') {
@@ -118,7 +143,8 @@ module.exports = async (req, res) => {
       await logActivity({
         action: 'user_role_changed',
         summary: `Changed role of "${t.name}" (${t.email}): ${t.role} → ${role}`,
-        details: { userId: id, oldRole: t.role, newRole: role, byUserId: user.id, byUserName: user.name }
+        details: { userId: id, oldRole: t.role, newRole: role, byUserId: user.id, byUserName: user.name },
+        actor: user
       });
       return res.json({ ok: true });
     }
@@ -140,7 +166,8 @@ module.exports = async (req, res) => {
       await logActivity({
         action: 'user_removed',
         summary: `Removed user "${t.name}" (${t.email}, ${t.role})`,
-        details: { userId: id, email: t.email, role: t.role, byUserId: user.id, byUserName: user.name }
+        details: { userId: id, email: t.email, role: t.role, byUserId: user.id, byUserName: user.name },
+        actor: user
       });
       return res.json({ ok: true });
     }

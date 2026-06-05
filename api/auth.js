@@ -6,7 +6,7 @@
 //   GET  ?action=set-password   -> validate a setup/reset token
 //   POST ?action=set-password   -> set password from token + sign in
 
-const { sql, ensureTables, parseBody } = require('../lib/db');
+const { sql, ensureTables, parseBody, logActivity } = require('../lib/db');
 const {
   COOKIE_NAME,
   hashPassword,
@@ -16,8 +16,16 @@ const {
   clearSessionCookie,
   parseCookies,
   getSession,
-  countUsers
+  countUsers,
+  generateToken
 } = require('../lib/auth');
+const { sendEmail, isEmailConfigured, resetTemplate } = require('../lib/email');
+
+function originFromReq(req) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return `${proto}://${host}`;
+}
 
 module.exports = async (req, res) => {
   try {
@@ -28,9 +36,9 @@ module.exports = async (req, res) => {
     if (action === 'me') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
       const user = await getSession(req);
-      if (user) return res.json({ authenticated: true, needsSetup: false, user });
+      if (user) return res.json({ authenticated: true, needsSetup: false, user, emailConfigured: isEmailConfigured() });
       const total = await countUsers();
-      return res.json({ authenticated: false, needsSetup: total === 0 });
+      return res.json({ authenticated: false, needsSetup: total === 0, emailConfigured: isEmailConfigured() });
     }
 
     // -------------------- login --------------------
@@ -137,6 +145,62 @@ module.exports = async (req, res) => {
         return res.json({ user: u[0] });
       }
       return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // -------------------- change-password (logged-in user) --------------------
+    if (action === 'change-password') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const user = await getSession(req);
+      if (!user) return res.status(401).json({ error: 'Not authenticated' });
+      const { currentPassword, newPassword } = await parseBody(req);
+      if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' });
+      if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
+      const rows = await sql`SELECT password_hash FROM users WHERE id = ${user.id} LIMIT 1`;
+      if (!rows.length || !rows[0].password_hash) return res.status(400).json({ error: 'Account is in an unexpected state' });
+      const ok = await verifyPassword(currentPassword, rows[0].password_hash);
+      if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+      const hash = await hashPassword(newPassword);
+      await sql`UPDATE users SET password_hash = ${hash} WHERE id = ${user.id}`;
+      // Optional: invalidate other sessions so old cookies elsewhere are kicked out
+      const cookieToken = parseCookies(req)[COOKIE_NAME];
+      await sql`DELETE FROM sessions WHERE user_id = ${user.id} AND token <> ${cookieToken}`;
+      await logActivity({
+        action: 'password_self_changed',
+        summary: `Changed own password`,
+        details: { userId: user.id },
+        actor: user
+      });
+      return res.json({ ok: true });
+    }
+
+    // -------------------- forgot-password (public, rate-limited by token expiry) --------------------
+    if (action === 'forgot-password') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { email } = await parseBody(req);
+      const emailT = (email || '').trim().toLowerCase();
+      // Always return generic success so callers can't probe for valid emails.
+      const generic = { ok: true, emailConfigured: isEmailConfigured() };
+      if (!emailT || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailT)) return res.json(generic);
+      if (!isEmailConfigured()) return res.json(generic); // Without Resend, do nothing silently
+      const rows = await sql`SELECT id, email, name FROM users WHERE LOWER(email) = ${emailT} LIMIT 1`;
+      if (!rows.length) return res.json(generic);
+      const u = rows[0];
+      const token = generateToken();
+      const hours = 24;
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+      await sql`
+        INSERT INTO setup_tokens (token, user_id, purpose, expires_at)
+        VALUES (${token}, ${u.id}, 'reset', ${expiresAt.toISOString()})
+      `;
+      const setupUrl = `${originFromReq(req)}/?reset=${encodeURIComponent(token)}`;
+      const tpl = resetTemplate({ inviteeName: u.name, setupUrl, hours });
+      await sendEmail({ to: u.email, subject: 'Reset your Parts Store password', ...tpl });
+      await logActivity({
+        action: 'password_reset_requested',
+        summary: `Self-service password reset requested for "${u.name}" (${u.email})`,
+        details: { userId: u.id, email: u.email }
+      });
+      return res.json(generic);
     }
 
     return res.status(400).json({ error: 'Unknown action' });
