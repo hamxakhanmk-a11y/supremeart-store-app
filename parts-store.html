@@ -1983,7 +1983,7 @@ async function initAuthFromUrl(){
   if(!token)return false;
   _pendingSetupToken=token;
   try{
-    const r=await fetch('/api/auth/set-password?token='+encodeURIComponent(token));
+    const r=await fetch('/api/auth?action=set-password&token='+encodeURIComponent(token));
     const data=await r.json();
     if(!r.ok||!data.valid){
       // Show login screen with error
@@ -2015,7 +2015,7 @@ async function initAuth(){
   // If user landed via ?setup=TOKEN / ?reset=TOKEN / ?invite=TOKEN, show set-password screen
   if(await initAuthFromUrl())return;
   try{
-    const r=await fetch('/api/auth/me');
+    const r=await fetch('/api/auth?action=me');
     const data=await r.json();
     if(data.authenticated){
       state.user=data.user;
@@ -2042,7 +2042,7 @@ async function submitSetPassword(){
   if(pw.length<8){showAuthError('setpw','Password must be at least 8 characters.');return;}
   if(!_pendingSetupToken){showAuthError('setpw','Missing setup token. Please reopen the link from your invitation.');return;}
   try{
-    const r=await fetch('/api/auth/set-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:_pendingSetupToken,password:pw})});
+    const r=await fetch('/api/auth?action=set-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:_pendingSetupToken,password:pw})});
     const data=await r.json();
     if(!r.ok){showAuthError('setpw',data.error||'Could not set password.');return;}
     state.user=data.user;
@@ -2064,7 +2064,7 @@ async function submitSetup(){
   if(pw!==pw2){showAuthError('setup','Passwords do not match.');return;}
   if(pw.length<8){showAuthError('setup','Password must be at least 8 characters.');return;}
   try{
-    const r=await fetch('/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pw})});
+    const r=await fetch('/api/auth?action=setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pw})});
     const data=await r.json();
     if(!r.ok){showAuthError('setup',data.error||'Could not create account.');return;}
     state.user=data.user;
@@ -2080,7 +2080,7 @@ async function submitLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pw=document.getElementById('login-pw').value;
   try{
-    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+    const r=await fetch('/api/auth?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
     const data=await r.json();
     if(!r.ok){showAuthError('login',data.error||'Could not sign in.');return;}
     state.user=data.user;
@@ -2094,7 +2094,7 @@ async function submitLogin(){
 
 async function logout(){
   if(!await confirmDialog({title:'Sign out?',message:'You will need to sign in again to access the app.',confirmText:'Sign Out',variant:'confirm'}))return;
-  try{await fetch('/api/auth/logout',{method:'POST'});}catch(e){/* ignore */}
+  try{await fetch('/api/auth?action=logout',{method:'POST'});}catch(e){/* ignore */}
   // Hard reload guarantees a clean state (no stale active page, no leftover data flashing)
   window.location.href='/';
 }
