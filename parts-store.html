@@ -137,6 +137,26 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .app-dialog-confirm-danger:hover{background:#7d1f1f;border-color:#7d1f1f}
 .app-dialog-confirm-warn{background:#A36B17;color:#fff;border-color:#A36B17;font-weight:600}
 .app-dialog-confirm-warn:hover{background:#7d4f0f;border-color:#7d4f0f}
+/* ===== Auth screen + user bar ===== */
+.auth-screen{position:fixed;inset:0;background:#f5f5f3;display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem}
+.auth-card{background:#fff;border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,0.10);padding:2rem 1.75rem;width:400px;max-width:96vw}
+.auth-logo{text-align:center;margin-bottom:1.5rem}
+.auth-logo-icon{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#185FA5;color:#fff;border-radius:12px;font-size:24px;margin-bottom:8px}
+.auth-logo-title{font-size:16px;font-weight:600;color:#1a1a1a}
+.auth-logo-sub{font-size:12px;color:#888;margin-top:2px}
+.auth-title{font-size:18px;font-weight:600;text-align:center;margin-bottom:6px}
+.auth-sub{font-size:13px;color:#666;text-align:center;margin-bottom:1.5rem;line-height:1.5}
+.auth-error{background:#fcebeb;color:#A32D2D;border:1px solid #f5cccc;border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:1rem;display:none}
+.auth-error.show{display:block}
+.auth-form .form-group{margin-bottom:0.9rem}
+.auth-submit{width:100%;padding:11px;font-size:13px;font-weight:600;margin-top:6px}
+.top-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:1.25rem;flex-wrap:wrap}
+.top-bar .mod-switcher{margin-bottom:0}
+.user-bar{display:flex;align-items:center;gap:12px}
+.user-info{text-align:right;line-height:1.25}
+.user-name{font-size:13px;font-weight:600;color:#1a1a1a}
+.user-role{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;display:block}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:#185FA5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
 .sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
@@ -159,6 +179,39 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 </head>
 <body>
 
+<!-- AUTH SCREEN (shown until user is signed in) -->
+<div class="auth-screen" id="auth-screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon"><i class="ti ti-tools"></i></div>
+      <div class="auth-logo-title">Parts Store</div>
+      <div class="auth-logo-sub">Stock Management System</div>
+    </div>
+
+    <!-- SETUP form (first run) -->
+    <form class="auth-form" id="auth-setup-form" style="display:none" onsubmit="event.preventDefault();submitSetup()">
+      <div class="auth-title">Set up your account</div>
+      <div class="auth-sub">No users exist yet. Create the first admin to get started.</div>
+      <div class="auth-error" id="setup-error"></div>
+      <div class="form-group"><label class="form-label">Your name *</label><input id="setup-name" placeholder="e.g. Muhammad Hamza" required></div>
+      <div class="form-group"><label class="form-label">Email *</label><input id="setup-email" type="email" placeholder="you@example.com" required></div>
+      <div class="form-group"><label class="form-label">Password *</label><input id="setup-pw" type="password" placeholder="At least 8 characters" required minlength="8"></div>
+      <div class="form-group"><label class="form-label">Confirm password *</label><input id="setup-pw2" type="password" placeholder="Repeat password" required minlength="8"></div>
+      <button type="submit" class="btn btn-primary auth-submit">Create Admin Account</button>
+    </form>
+
+    <!-- LOGIN form (returning users) -->
+    <form class="auth-form" id="auth-login-form" style="display:none" onsubmit="event.preventDefault();submitLogin()">
+      <div class="auth-title">Sign in</div>
+      <div class="auth-sub">Welcome back. Enter your credentials to continue.</div>
+      <div class="auth-error" id="login-error"></div>
+      <div class="form-group"><label class="form-label">Email *</label><input id="login-email" type="email" placeholder="you@example.com" required></div>
+      <div class="form-group"><label class="form-label">Password *</label><input id="login-pw" type="password" placeholder="Your password" required></div>
+      <button type="submit" class="btn btn-primary auth-submit">Sign In</button>
+    </form>
+  </div>
+</div>
+
 <div class="app">
   <div class="sidebar">
     <div class="logo">
@@ -179,10 +232,20 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 
   <div class="main">
 
-    <!-- MODULE SWITCHER -->
-    <div class="mod-switcher no-print">
-      <button class="mod-pill active" id="mod-machinery" onclick="switchModule('machinery')"><i class="ti ti-tools"></i> Machinery &amp; Electrical</button>
-      <button class="mod-pill" id="mod-consumables" onclick="switchModule('consumables')"><i class="ti ti-droplet"></i> Inks &amp; Consumables</button>
+    <!-- TOP BAR: module switcher + user info -->
+    <div class="top-bar no-print">
+      <div class="mod-switcher">
+        <button class="mod-pill active" id="mod-machinery" onclick="switchModule('machinery')"><i class="ti ti-tools"></i> Machinery &amp; Electrical</button>
+        <button class="mod-pill" id="mod-consumables" onclick="switchModule('consumables')"><i class="ti ti-droplet"></i> Inks &amp; Consumables</button>
+      </div>
+      <div class="user-bar" id="user-bar" style="display:none">
+        <div class="user-info">
+          <span class="user-name" id="user-name"></span>
+          <span class="user-role" id="user-role"></span>
+        </div>
+        <div class="user-avatar" id="user-avatar"></div>
+        <button class="btn btn-sm" onclick="logout()" title="Sign out"><i class="ti ti-logout"></i> Logout</button>
+      </div>
     </div>
 
     <!-- DASHBOARD -->
@@ -564,6 +627,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let state = {
+  user: null,
   module: localStorage.getItem('activeModule') || 'machinery',
   categories: [],
   machines: [],
@@ -597,6 +661,13 @@ async function apiFetch(url, method='GET', body=null){
   const r=await fetch(url,opts);
   const data=await r.json();
   if(!r.ok){
+    if(r.status===401 && state.user){
+      // Session expired or revoked — drop user back to login
+      state.user=null;
+      renderUserBar();
+      showAuthScreen('login');
+      showAuthError('login','Your session has expired. Please sign in again.');
+    }
     const err=new Error(data.error||'Request failed');
     err.status=r.status;
     err.data=data;
@@ -1676,14 +1747,119 @@ function renderTrash(){
   </tr>`).join('');
 }
 function renderAll(){renderDashboard();renderInventory();renderStockIn();renderStockOut();renderIssuance();renderCategories();renderMachines();renderActivity();renderTrash();}
-// Apply persisted module to UI before first load
-(function initModule(){
+
+// ---- AUTH ----
+function applyModuleToUI(){
   const m=state.module;
   document.getElementById('mod-machinery').classList.toggle('active',m==='machinery');
   document.getElementById('mod-consumables').classList.toggle('active',m==='consumables');
   const sub=document.querySelector('.logo-sub');if(sub)sub.textContent=MODULE_LABEL[m];
-})();
-loadAll();
+}
+
+function renderUserBar(){
+  const bar=document.getElementById('user-bar');
+  if(!state.user){bar.style.display='none';return;}
+  document.getElementById('user-name').textContent=state.user.name;
+  document.getElementById('user-role').textContent=state.user.role||'user';
+  const initials=(state.user.name||'?').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('user-avatar').textContent=initials||'?';
+  bar.style.display='flex';
+}
+
+function showAuthScreen(mode){
+  document.getElementById('auth-screen').style.display='flex';
+  document.getElementById('auth-setup-form').style.display=mode==='setup'?'block':'none';
+  document.getElementById('auth-login-form').style.display=mode==='login'?'block':'none';
+  setTimeout(()=>{
+    const focusEl=document.getElementById(mode==='setup'?'setup-name':'login-email');
+    if(focusEl)focusEl.focus();
+  },50);
+}
+
+function hideAuthScreen(){
+  document.getElementById('auth-screen').style.display='none';
+}
+
+function showAuthError(formId,message){
+  const el=document.getElementById(formId==='setup'?'setup-error':'login-error');
+  el.textContent=message;
+  el.classList.add('show');
+}
+
+function clearAuthErrors(){
+  ['setup-error','login-error'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='';el.classList.remove('show');}});
+}
+
+async function initAuth(){
+  try{
+    const r=await fetch('/api/auth/me');
+    const data=await r.json();
+    if(data.authenticated){
+      state.user=data.user;
+      hideAuthScreen();
+      renderUserBar();
+      applyModuleToUI();
+      await loadAll();
+    } else if(data.needsSetup){
+      showAuthScreen('setup');
+    } else {
+      showAuthScreen('login');
+    }
+  }catch(e){
+    showAuthScreen('login');
+    showAuthError('login','Could not reach the server. Please try again.');
+  }
+}
+
+async function submitSetup(){
+  clearAuthErrors();
+  const name=document.getElementById('setup-name').value.trim();
+  const email=document.getElementById('setup-email').value.trim();
+  const pw=document.getElementById('setup-pw').value;
+  const pw2=document.getElementById('setup-pw2').value;
+  if(pw!==pw2){showAuthError('setup','Passwords do not match.');return;}
+  if(pw.length<8){showAuthError('setup','Password must be at least 8 characters.');return;}
+  try{
+    const r=await fetch('/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password:pw})});
+    const data=await r.json();
+    if(!r.ok){showAuthError('setup',data.error||'Could not create account.');return;}
+    state.user=data.user;
+    hideAuthScreen();
+    renderUserBar();
+    applyModuleToUI();
+    await loadAll();
+  }catch(e){showAuthError('setup','Network error. Please try again.');}
+}
+
+async function submitLogin(){
+  clearAuthErrors();
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+    const data=await r.json();
+    if(!r.ok){showAuthError('login',data.error||'Could not sign in.');return;}
+    state.user=data.user;
+    document.getElementById('login-pw').value='';
+    hideAuthScreen();
+    renderUserBar();
+    applyModuleToUI();
+    await loadAll();
+  }catch(e){showAuthError('login','Network error. Please try again.');}
+}
+
+async function logout(){
+  if(!await confirmDialog({title:'Sign out?',message:'You will need to sign in again to access the app.',confirmText:'Sign Out',variant:'confirm'}))return;
+  try{await fetch('/api/auth/logout',{method:'POST'});}catch(e){/* ignore */}
+  state.user=null;
+  // Wipe loaded data so a different account on the same machine doesn't briefly see it
+  state.categories=[];state.machines=[];state.parts=[];state.transactions=[];state.trash=[];state.activity=[];
+  renderAll();
+  renderUserBar();
+  showAuthScreen('login');
+}
+
+initAuth();
 </script>
 </body>
 </html>
