@@ -163,6 +163,8 @@ body:not(.role-admin) .admin-only{display:none!important}
 .role-tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
 .role-tag-admin{background:#eef2f8;color:#185FA5}
 .role-tag-user{background:#eaf3de;color:#2d6a10}
+.role-tag-machinery{background:#eef2f8;color:#185FA5}
+.role-tag-consumables{background:#e6f4f1;color:#0d6b5e}
 .role-tag-ceo{background:#fdf4e3;color:#854F0B}
 .user-row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .user-row-actions select{padding:5px 8px;font-size:12px;width:auto;min-width:80px}
@@ -581,6 +583,7 @@ body:not(.role-admin) .admin-only{display:none!important}
   <div class="modal">
     <div class="modal-title"><i class="ti ti-lock"></i> Change Your Password</div>
     <div class="form-group"><label class="form-label">Current Password *</label><input id="f-chgpw-cur" type="password" autocomplete="current-password"></div>
+    <div style="font-size:11px;margin-top:-6px;margin-bottom:10px"><a href="#" onclick="event.preventDefault();forgotPasswordFromModal()" style="color:#185FA5;text-decoration:none">Don’t remember your current password?</a></div>
     <div class="form-group"><label class="form-label">New Password *</label><input id="f-chgpw-new" type="password" placeholder="At least 8 characters" autocomplete="new-password"></div>
     <div class="form-group"><label class="form-label">Confirm New Password *</label><input id="f-chgpw-new2" type="password" autocomplete="new-password"></div>
     <div style="font-size:11px;color:#888;margin-top:-6px;margin-bottom:6px">All your other sessions on other devices will be signed out.</div>
@@ -599,7 +602,8 @@ body:not(.role-admin) .admin-only{display:none!important}
     <div class="form-group">
       <label class="form-label">Role *</label>
       <select id="f-invite-role">
-        <option value="user">User — can record stock movements and edit parts</option>
+        <option value="machinery">Machinery Staff — full access to record and edit</option>
+        <option value="consumables">Consumables Staff — full access to record and edit</option>
         <option value="admin">Admin — full access, can manage other users</option>
         <option value="ceo">CEO — view-only access for dashboards and reports</option>
       </select>
@@ -1862,13 +1866,17 @@ function renderUsers(){
   const fmtTs=ts=>{if(!ts)return'never';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
   tb.innerHTML=items.map(u=>{
     const isMe=state.user && u.id===state.user.id;
-    const roleOpts=['admin','user','ceo'].map(r=>`<option value="${r}" ${r===u.role?'selected':''}>${r==='ceo'?'CEO (view-only)':r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join('');
+    const roleLabel=r=>({admin:'Admin',user:'User',machinery:'Machinery Staff',consumables:'Consumables Staff',ceo:'CEO (view-only)'}[r]||r);
+    const availableRoles=['admin','machinery','consumables','ceo'];
+    // Keep the user's current role in the list even if it's a legacy 'user' value
+    if(!availableRoles.includes(u.role))availableRoles.unshift(u.role);
+    const roleOpts=availableRoles.map(r=>`<option value="${r}" ${r===u.role?'selected':''}>${roleLabel(r)}</option>`).join('');
     const status=u.hasPassword?'<span class="badge badge-ok">Active</span>':'<span class="badge badge-low">Pending invite</span>';
     const invited=u.invitedByName?`${u.invitedByName}`:'—';
     return`<tr>
       <td style="font-weight:600">${u.name}${isMe?' <span class="badge badge-in" style="margin-left:6px">You</span>':''}</td>
       <td style="color:#555">${u.email}</td>
-      <td>${isMe?`<span class="role-tag role-tag-${u.role}">${u.role==='ceo'?'CEO':u.role}</span>`:`<select onchange="changeUserRole(${u.id},this.value,'${u.role}')">${roleOpts}</select>`}</td>
+      <td>${isMe?`<span class="role-tag role-tag-${u.role}">${roleLabel(u.role)}</span>`:`<select onchange="changeUserRole(${u.id},this.value,'${u.role}')">${roleOpts}</select>`}</td>
       <td>${status}</td>
       <td style="color:#555">${invited}</td>
       <td style="color:#888;font-size:12px">${fmtTs(u.lastLoginAt)}</td>
@@ -1989,7 +1997,8 @@ function renderUserBar(){
   if(!state.user){bar.style.display='none';return;}
   document.body.classList.add('role-'+state.user.role);
   document.getElementById('user-name').textContent=state.user.name;
-  document.getElementById('user-role').textContent=state.user.role||'user';
+  const roleDisplay={admin:'Admin',user:'User',machinery:'Machinery Staff',consumables:'Consumables Staff',ceo:'CEO'}[state.user.role]||state.user.role||'user';
+  document.getElementById('user-role').textContent=roleDisplay;
   const initials=(state.user.name||'?').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('user-avatar').textContent=initials||'?';
   bar.style.display='flex';
@@ -2159,6 +2168,25 @@ async function submitChangePassword(){
     clearChangePwFields();
     await successDialog('Password updated','Your password has been changed. Other devices have been signed out.');
   }catch(e){await errorDialog('Network error','Please try again.');}
+}
+
+async function forgotPasswordFromModal(){
+  // If email isn't configured, point them at admin help directly.
+  if(!state.emailConfigured){
+    closeModal('changePw');
+    await infoDialog('Ask your admin','Self-service password reset needs email to be configured. For now, please ask your admin to generate a reset link from the Users page.');
+    return;
+  }
+  // Email IS configured — fire off a reset email to the signed-in user's address, then sign them out
+  // so they can complete the flow from the link.
+  if(!state.user || !state.user.email){closeModal('changePw');return;}
+  try{
+    await fetch('/api/auth?action=forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:state.user.email})});
+  }catch(_){/* ignore */}
+  closeModal('changePw');
+  await infoDialog('Check your inbox','We sent a reset link to '+state.user.email+'. Open the link from your inbox to set a new password.\n\nYou will be signed out now.');
+  try{await fetch('/api/auth?action=logout',{method:'POST'});}catch(_){}
+  window.location.href='/';
 }
 
 async function showForgotPassword(){
