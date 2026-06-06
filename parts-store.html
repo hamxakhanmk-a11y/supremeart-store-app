@@ -1866,10 +1866,8 @@ function renderUsers(){
   const fmtTs=ts=>{if(!ts)return'never';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
   tb.innerHTML=items.map(u=>{
     const isMe=state.user && u.id===state.user.id;
-    const roleLabel=r=>({admin:'Admin',user:'User',machinery:'Machinery Staff',consumables:'Consumables Staff',ceo:'CEO (view-only)'}[r]||r);
+    const roleLabel=r=>({admin:'Admin',machinery:'Machinery Staff',consumables:'Consumables Staff',ceo:'CEO (view-only)'}[r]||r);
     const availableRoles=['admin','machinery','consumables','ceo'];
-    // Keep the user's current role in the list even if it's a legacy 'user' value
-    if(!availableRoles.includes(u.role))availableRoles.unshift(u.role);
     const roleOpts=availableRoles.map(r=>`<option value="${r}" ${r===u.role?'selected':''}>${roleLabel(r)}</option>`).join('');
     const status=u.hasPassword?'<span class="badge badge-ok">Active</span>':'<span class="badge badge-low">Pending invite</span>';
     const invited=u.invitedByName?`${u.invitedByName}`:'—';
@@ -1997,7 +1995,7 @@ function renderUserBar(){
   if(!state.user){bar.style.display='none';return;}
   document.body.classList.add('role-'+state.user.role);
   document.getElementById('user-name').textContent=state.user.name;
-  const roleDisplay={admin:'Admin',user:'User',machinery:'Machinery Staff',consumables:'Consumables Staff',ceo:'CEO'}[state.user.role]||state.user.role||'user';
+  const roleDisplay={admin:'Admin',machinery:'Machinery Staff',consumables:'Consumables Staff',ceo:'CEO'}[state.user.role]||state.user.role;
   document.getElementById('user-role').textContent=roleDisplay;
   const initials=(state.user.name||'?').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('user-avatar').textContent=initials||'?';
