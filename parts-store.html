@@ -2162,11 +2162,19 @@ async function submitChangePassword(){
 }
 
 async function showForgotPassword(){
-  const email=await promptDialog({title:'Forgot password?',message:state.emailConfigured?'Enter your email and we’ll send a reset link.':'Self-service password reset is disabled (email is not configured). Please contact your admin to generate a reset link for you.',placeholder:'you@example.com',confirmText:'Send link'});
+  // Skip the email prompt entirely when email isn't configured — there's nothing
+  // we can actually do with it, and pretending otherwise is misleading.
+  if(!state.emailConfigured){
+    await infoDialog(
+      'Ask your admin to reset it',
+      'Self-service password reset needs an email service (Resend) to be configured by the project owner. Until that\'s done:\n\n• Contact your admin directly (WhatsApp, in person, etc.)\n• They open the Users page → click "Reset PW" next to your name\n• They send you the one-time link\n• You click it and set a new password'
+    );
+    return;
+  }
+  const email=await promptDialog({title:'Forgot password?',message:'Enter the email address you sign in with. If it\'s registered, we\'ll send you a reset link.',placeholder:'you@example.com',confirmText:'Send link'});
   if(email===null)return;
   const e=(email||'').trim();
   if(!e)return;
-  if(!state.emailConfigured){await infoDialog('Reset sent (if registered)','If that email is registered, the admin will be notified. For now please ask them to generate a link manually.');return;}
   try{await fetch('/api/auth?action=forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})});}catch(_){/* ignore */}
   await infoDialog('Check your inbox','If that email is registered, a reset link is on its way. The link expires in 24 hours.');
 }
