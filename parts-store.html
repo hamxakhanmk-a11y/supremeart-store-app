@@ -249,9 +249,9 @@ body:not(.role-admin) .admin-only{display:none!important}
     <div class="nav-item" onclick="showPage('issuance',this)"><i class="ti ti-clipboard-list"></i> Issuance Log</div>
     <div class="nav-item" onclick="showPage('activity',this)"><i class="ti ti-history"></i> Activity Log</div>
     <div class="divider"></div>
-    <div class="nav-item write-only" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
-    <div class="nav-item write-only" onclick="showPage('machines',this)"><i class="ti ti-building-factory-2"></i> Machines</div>
-    <div class="nav-item write-only" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
+    <div class="nav-item" onclick="showPage('categories',this)"><i class="ti ti-tag"></i> Categories</div>
+    <div class="nav-item" onclick="showPage('machines',this)"><i class="ti ti-building-factory-2"></i> Machines</div>
+    <div class="nav-item" onclick="showPage('trash',this)"><i class="ti ti-trash"></i> Trash</div>
     <div class="nav-item admin-only" onclick="showPage('users',this)"><i class="ti ti-users"></i> Users</div>
   </div>
 
@@ -1784,7 +1784,7 @@ function renderCategories(){
   if(!tb)return;
   tb.innerHTML=state.categories.map(c=>{
     const count=state.parts.filter(p=>p.category===c).length;
-    return`<tr><td style="font-weight:600">${c}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteCat('${c}')"><i class="ti ti-trash"></i></button></td></tr>`;
+    return`<tr><td style="font-weight:600">${c}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td class="write-only"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteCat('${c}')"><i class="ti ti-trash"></i></button></td></tr>`;
   }).join('');
 }
 
@@ -1794,7 +1794,7 @@ function renderMachines(){
   if(!state.machines.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><i class="ti ti-building-factory-2"></i>No machines added yet</div></td></tr>';return;}
   tb.innerHTML=state.machines.map(m=>{
     const count=state.parts.filter(p=>parseMachines(p.machine).includes(m)).length;
-    return`<tr><td style="font-weight:600">${m}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteMachine('${m.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button></td></tr>`;
+    return`<tr><td style="font-weight:600">${m}</td><td><span class="badge badge-ok">${count} part${count!==1?'s':''}</span></td><td class="write-only"><button class="btn btn-icon" style="color:#A32D2D" title="Delete" onclick="deleteMachine('${m.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button></td></tr>`;
   }).join('');
 }
 
