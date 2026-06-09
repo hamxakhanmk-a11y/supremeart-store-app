@@ -24,10 +24,9 @@
 body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:var(--page-bg);height:100vh;overflow:hidden}
 .app{display:flex;height:100vh}
 .sidebar{width:222px;min-width:222px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0}
-.logo{padding:1rem 1.1rem 0.9rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem;text-align:center;background:transparent}
-.sidebar-logo-img{display:block;margin:0 auto 8px;max-width:160px;max-height:78px;width:auto;height:auto;object-fit:contain}
-.logo-title{font-size:14px;font-weight:700;color:var(--primary);letter-spacing:0.2px}
-.logo-sub{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.logo{padding:1.1rem 1.2rem 1rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem;background:transparent}
+.logo-title{font-size:17px;font-weight:700;color:var(--primary);letter-spacing:0.2px}
+.logo-sub{font-size:10.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 1.1rem;font-size:13px;cursor:pointer;color:#5b5249;transition:all 0.15s;border-left:3px solid transparent;margin:1px 0}
 .nav-item:hover{background:var(--surface-hover);color:var(--text)}
 .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600;border-left:3px solid var(--primary)}
@@ -213,8 +212,8 @@ body:not(.role-admin) .admin-only{display:none!important}
 .hero-btn-primary:hover{background:#fdf4f4;transform:translateY(-1px)}
 .hero-btn-ghost{background:rgba(255,255,255,0.14);color:#fff;border:1px solid rgba(255,255,255,0.35)}
 .hero-btn-ghost:hover{background:rgba(255,255,255,0.22)}
-.hero-mark{position:absolute;right:2rem;top:50%;transform:translateY(-50%);width:210px;height:140px;display:flex;align-items:center;justify-content:center;z-index:1;background:transparent}
-.hero-logo-img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;filter:brightness(0) invert(1);opacity:0.92}
+.hero-mark{position:absolute;right:2rem;top:50%;transform:translateY(-50%);width:300px;height:190px;display:flex;align-items:center;justify-content:center;z-index:1;background:transparent}
+.hero-logo-img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;filter:brightness(0) invert(1);opacity:0.95}
 @media (max-width:760px){.hero-mark{display:none}}
 /* ===== Stat cards — HR-style with icon tile ===== */
 .stats-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
@@ -309,9 +308,8 @@ body:not(.role-admin) .admin-only{display:none!important}
 <div class="app">
   <div class="sidebar">
     <div class="logo">
-      <img src="/logo.png" alt="Supreme Art (Pvt) Ltd." class="sidebar-logo-img">
       <div class="logo-title">Parts Store</div>
-      <div class="logo-sub">Stock Management System</div>
+      <div class="logo-sub" id="sidebar-module-label">Machinery &amp; Electrical</div>
     </div>
     <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
     <div class="nav-item" onclick="showPage('inventory',this)"><i class="ti ti-package"></i> Inventory</div>
@@ -1718,10 +1716,10 @@ function renderDashboard(){
   const gt=document.getElementById('hero-greet-text');
   const ht=document.getElementById('hero-title');
   if(gt)gt.textContent=uName?`${greet}, ${uName}`:greet;
-  if(ht){
-    const modLabel=state.module==='consumables'?'Inks & Consumables':'Machinery & Electrical';
-    ht.textContent=`Welcome back — ${modLabel}`;
-  }
+  const modLabel=state.module==='consumables'?'Inks & Consumables':'Machinery & Electrical';
+  if(ht)ht.textContent=`Welcome back — ${modLabel}`;
+  const sml=document.getElementById('sidebar-module-label');
+  if(sml)sml.textContent=modLabel;
   const sg=document.getElementById('stats-grid');
   const totalParts=state.parts.length;
   const totalQty=state.parts.reduce((a,p)=>a+p.qty,0);
