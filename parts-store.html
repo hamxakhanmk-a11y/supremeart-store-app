@@ -6,8 +6,22 @@
 <title>Parts Store — Stock Management</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
+:root{
+  --primary:#8C2326;
+  --primary-dark:#6B1A1C;
+  --primary-soft:#fbefef;
+  --primary-glow:rgba(140,35,38,0.10);
+  --accent:#B8862A;
+  --page-bg:#f4ede2;
+  --surface:#ffffff;
+  --surface-hover:#fbf6ee;
+  --border:#e8e1d3;
+  --border-soft:#f1ead9;
+  --text:#1f1a17;
+  --muted:#8a7f73;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a1a;background:#f5f5f3;height:100vh;overflow:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:var(--page-bg);height:100vh;overflow:hidden}
 .app{display:flex;height:100vh}
 .sidebar{width:222px;min-width:222px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0}
 .logo{padding:1.1rem 1.2rem 1rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem;background:transparent}
@@ -17,34 +31,34 @@ body{font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a1a;background:#f5f5f
 .nav-item:hover{background:var(--surface-hover);color:var(--text)}
 .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600;border-left:3px solid var(--primary)}
 .nav-item i{font-size:17px}
-.main{flex:1;overflow-y:auto;padding:1.75rem;background:#f5f5f3}
+.main{flex:1;overflow-y:auto;padding:0 1.75rem 1.75rem;background:var(--page-bg)}
 .page{display:none}.page.active{display:block}
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px}
 .page-title{font-size:20px;font-weight:600}
 .header-actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn{padding:8px 14px;border-radius:8px;border:1px solid #d0d0cc;background:#fff;color:#1a1a1a;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;font-family:inherit}
-.btn:hover{background:#f5f5f3}
-.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
-.btn-primary:hover{background:#0C447C}
+.btn:hover{background:#fbf6ee}
+.btn-primary{background:#8C2326;color:#fff;border-color:#8C2326}
+.btn-primary:hover{background:#6B1A1C}
 .btn-success{background:#2d6a10;color:#fff;border-color:#2d6a10}
 .btn-success:hover{background:#1e4d09}
 .btn-excel{background:#1D6F42;color:#fff;border-color:#1D6F42}
 .btn-excel:hover{background:#155232}
 .btn-print{background:#444;color:#fff;border-color:#444}
 .btn-print:hover{background:#222}
-.btn-danger-soft{background:#fff;color:#A32D2D;border-color:#e8e8e6}
+.btn-danger-soft{background:#fff;color:#A32D2D;border-color:#e8e1d3}
 .btn-danger-soft:hover{background:#fff5f5}
 .btn-sm{padding:5px 10px;font-size:12px}
 .btn-icon{padding:5px 8px;font-size:12px;min-width:28px;justify-content:center}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:1.5rem}
-.stat-card{background:#fff;border-radius:10px;padding:1.1rem;border:1px solid #e8e8e6}
+.stat-card{background:#fff;border-radius:10px;padding:1.1rem;border:1px solid #e8e1d3}
 .stat-label{font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
 .stat-value{font-size:26px;font-weight:700}
 .stat-sub{font-size:11px;color:#aaa;margin-top:2px}
 .c-green{color:#2d6a10}.c-amber{color:#854F0B}.c-red{color:#A32D2D}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;font-size:11px;font-weight:600;color:#888;padding:8px 12px;border-bottom:1px solid #e8e8e6;text-transform:uppercase;letter-spacing:0.5px;background:#fafafa}
-td{padding:10px 12px;border-bottom:1px solid #f0f0ee;color:#1a1a1a;vertical-align:middle}
+th{text-align:left;font-size:11px;font-weight:600;color:#888;padding:8px 12px;border-bottom:1px solid #e8e1d3;text-transform:uppercase;letter-spacing:0.5px;background:#fafafa}
+td{padding:10px 12px;border-bottom:1px solid #f1ead9;color:#1a1a1a;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafaf8}
 .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
@@ -53,58 +67,58 @@ tr:hover td{background:#fafaf8}
 .badge-low{background:#faeeda;color:#854F0B}
 .badge-ok{background:#eaf3de;color:#2d6a10}
 .badge-critical{background:#fcebeb;color:#A32D2D}
-.card{background:#fff;border:1px solid #e8e8e6;border-radius:10px;padding:1.25rem;margin-bottom:1rem}
+.card{background:#fff;border:1px solid #e8e1d3;border-radius:10px;padding:1.25rem;margin-bottom:1rem}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
-.modal{background:#fff;border-radius:12px;border:1px solid #e8e8e6;padding:1.75rem;width:460px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.14)}
+.modal{background:#fff;border-radius:12px;border:1px solid #e8e1d3;padding:1.75rem;width:460px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.14)}
 .modal-wide{width:700px}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px}
 .form-group{margin-bottom:1rem}
 .form-label{font-size:12px;color:#555;margin-bottom:5px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
 input,select,textarea{width:100%;padding:9px 12px;border-radius:8px;border:1px solid #d8d8d4;background:#fff;color:#1a1a1a;font-size:13px;font-family:inherit;transition:border 0.15s}
-input[type=checkbox]{width:16px;height:16px;padding:0;cursor:pointer;accent-color:#185FA5}
-input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px rgba(24,95,165,0.1)}
+input[type=checkbox]{width:16px;height:16px;padding:0;cursor:pointer;accent-color:#8C2326}
+input:focus,select:focus{outline:none;border-color:#8C2326;box-shadow:0 0 0 3px rgba(140,35,38,0.12)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #f0f0ee}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #f1ead9}
 .search-bar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
 .search-bar input[type=text]{max-width:240px}
 .empty{text-align:center;padding:3rem;color:#aaa;font-size:13px}
 .empty i{display:block;font-size:32px;margin-bottom:8px;opacity:0.4}
-.divider{height:1px;background:#f0f0ee;margin:0.5rem 1rem}
+.divider{height:1px;background:#f1ead9;margin:0.5rem 1rem}
 .section-title{font-size:13px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:6px;color:#555}
 .qty-positive{color:#2d6a10;font-weight:600}
 .qty-negative{color:#993C1D;font-weight:600}
-.mod-switcher{display:inline-flex;background:#fff;border:1px solid #e8e8e6;border-radius:999px;padding:4px;gap:2px;margin-bottom:1.25rem}
+.mod-switcher{display:inline-flex;background:#fff;border:1px solid #e8e1d3;border-radius:999px;padding:4px;gap:2px;margin-bottom:1.25rem}
 .mod-pill{padding:8px 18px;border-radius:999px;border:none;background:transparent;color:#555;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s}
 .mod-pill:hover{color:#1a1a1a}
 .mod-pill.active{background:#1a1a1a;color:#fff}
 .mod-pill i{font-size:15px}
 .sel-controls{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-.preset-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding:8px 10px;background:#f5f7fa;border-radius:8px;border:1px solid #e8e8e6}
+.preset-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding:8px 10px;background:#fbf6ee;border-radius:8px;border:1px solid #e8e1d3}
 .preset-row .preset-label{font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-right:4px}
 .preset-btn{padding:5px 11px;border-radius:999px;border:1px solid #d0d0cc;background:#fff;color:#333;font-size:12px;cursor:pointer;font-family:inherit;font-weight:500;transition:all 0.15s}
-.preset-btn:hover{background:#185FA5;color:#fff;border-color:#185FA5}
+.preset-btn:hover{background:#8C2326;color:#fff;border-color:#8C2326}
 .multi-box{border:1px solid #d8d8d4;border-radius:8px;padding:8px 10px;max-height:140px;overflow-y:auto;background:#fff}
 .multi-box .multi-row{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;cursor:pointer;border-radius:4px}
-.multi-box .multi-row:hover{background:#f5f7fa}
-.multi-box .multi-row input{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#185FA5;margin:0}
+.multi-box .multi-row:hover{background:#fbf6ee}
+.multi-box .multi-row input{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#8C2326;margin:0}
 .multi-box .multi-row label{cursor:pointer;flex:1}
 .multi-empty{color:#aaa;font-size:12px;text-align:center;padding:8px 0}
-.multi-add{margin-top:6px;font-size:12px;color:#185FA5;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500}
+.multi-add{margin-top:6px;font-size:12px;color:#8C2326;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:500}
 .multi-add:hover{text-decoration:underline}
-.machine-chip{display:inline-block;padding:2px 8px;margin:1px 2px 1px 0;border-radius:12px;background:#eef2f8;color:#185FA5;font-size:11px;font-weight:500}
+.machine-chip{display:inline-block;padding:2px 8px;margin:1px 2px 1px 0;border-radius:12px;background:#fbefef;color:#8C2326;font-size:11px;font-weight:500}
 .combo{position:relative}
 .combo-input-wrap{position:relative}
 .combo-input-wrap .combo-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#aaa;font-size:16px;pointer-events:none}
 .combo-input-wrap input{padding-right:32px}
 .combo-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #d8d8d4;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.10);max-height:260px;overflow-y:auto;z-index:50}
 .combo-dropdown.open{display:block}
-.combo-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #f5f5f3;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.combo-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid #fbf6ee;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .combo-item:last-child{border-bottom:none}
-.combo-item:hover,.combo-item.active{background:#f0f4fb}
+.combo-item:hover,.combo-item.active{background:#fbefef}
 .combo-main{min-width:0;flex:1}
 .combo-name{font-size:13px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.combo-sku{font-family:monospace;color:#185FA5;font-size:11px;margin-right:6px}
+.combo-sku{font-family:monospace;color:#8C2326;font-size:11px;margin-right:6px}
 .combo-sub{font-size:11px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .combo-qty{font-size:12px;color:#2d6a10;font-weight:600;white-space:nowrap;flex-shrink:0}
 .combo-qty.low{color:#854F0B}.combo-qty.out{color:#A32D2D}
@@ -113,7 +127,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .btn-danger-strong{background:#A32D2D;color:#fff;border-color:#A32D2D;font-weight:600;box-shadow:0 0 0 1px #A32D2D inset}
 .btn-danger-strong:hover{background:#7d1f1f;border-color:#7d1f1f}
 .btn-danger-strong i{font-size:14px}
-.part-sku{color:#185FA5;font-family:monospace;font-weight:600;font-size:12px;margin-right:4px}
+.part-sku{color:#8C2326;font-family:monospace;font-weight:600;font-size:12px;margin-right:4px}
 /* ===== Branded dialog system (replaces native alert/confirm/prompt) ===== */
 .app-dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2000;opacity:0;transition:opacity 0.15s}
 .app-dialog-overlay.open{opacity:1}
@@ -126,19 +140,19 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .app-dialog-icon-warn{background:#fdf4e3;color:#854F0B}
 .app-dialog-icon-success{background:#eaf3de;color:#2d6a10}
 .app-dialog-icon-error{background:#fcebeb;color:#A32D2D}
-.app-dialog-icon-info{background:#eef2f8;color:#185FA5}
-.app-dialog-icon-prompt{background:#eef2f8;color:#185FA5}
+.app-dialog-icon-info{background:#fbefef;color:#8C2326}
+.app-dialog-icon-prompt{background:#fbefef;color:#8C2326}
 .app-dialog-title{font-size:17px;font-weight:600;color:#1a1a1a;margin-bottom:8px;line-height:1.3}
 .app-dialog-message{font-size:13px;color:#555;line-height:1.55;white-space:pre-wrap;margin-bottom:16px;text-align:left}
 .app-dialog-input{margin:0 0 14px}
-.app-dialog-actions{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #f0f0ee;padding-top:14px;margin-top:6px}
+.app-dialog-actions{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #f1ead9;padding-top:14px;margin-top:6px}
 .app-dialog-actions .btn{padding:8px 18px;font-size:13px}
 .app-dialog-confirm-danger{background:#A32D2D;color:#fff;border-color:#A32D2D;font-weight:600}
 .app-dialog-confirm-danger:hover{background:#7d1f1f;border-color:#7d1f1f}
 .app-dialog-confirm-warn{background:#A36B17;color:#fff;border-color:#A36B17;font-weight:600}
 .app-dialog-confirm-warn:hover{background:#7d4f0f;border-color:#7d4f0f}
 /* ===== Auth screen + user bar ===== */
-.auth-screen{position:fixed;inset:0;background:#f5f5f3;display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem}
+.auth-screen{position:fixed;inset:0;background:#fbf6ee;display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem}
 .auth-card{background:#fff;border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,0.10);padding:2rem 1.75rem;width:400px;max-width:96vw}
 .auth-logo{text-align:center;margin-bottom:1.5rem}
 .auth-logo-img{display:block;margin:0 auto 10px;max-width:240px;max-height:110px;width:auto;height:auto;object-fit:contain}
@@ -156,23 +170,23 @@ input:focus,select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 3px 
 .user-info{text-align:right;line-height:1.25}
 .user-name{font-size:13px;font-weight:600;color:#1a1a1a}
 .user-role{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;display:block}
-.user-avatar{width:36px;height:36px;border-radius:50%;background:#185FA5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:#8C2326;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0}
 /* Role gates */
 body.role-ceo .write-only{display:none!important}
 body:not(.role-admin) .admin-only{display:none!important}
 .role-tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
-.role-tag-admin{background:#eef2f8;color:#185FA5}
+.role-tag-admin{background:#fbefef;color:#8C2326}
 .role-tag-user{background:#eaf3de;color:#2d6a10}
-.role-tag-machinery{background:#eef2f8;color:#185FA5}
+.role-tag-machinery{background:#fbefef;color:#8C2326}
 .role-tag-consumables{background:#e6f4f1;color:#0d6b5e}
 .role-tag-ceo{background:#fdf4e3;color:#854F0B}
 .user-row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .user-row-actions select{padding:5px 8px;font-size:12px;width:auto;min-width:80px}
-.invite-link-box{background:#f5f7fa;border:1px solid #e8e8e6;border-radius:8px;padding:10px;font-family:monospace;font-size:11px;word-break:break-all;color:#185FA5;margin:8px 0 14px;line-height:1.5}
+.invite-link-box{background:#fbf6ee;border:1px solid #e8e1d3;border-radius:8px;padding:10px;font-family:monospace;font-size:11px;word-break:break-all;color:#8C2326;margin:8px 0 14px;line-height:1.5}
 .sel-count{font-size:12px;color:#888;margin-left:auto;font-weight:600}
 .sel-table{width:100%;border-collapse:collapse;font-size:12px}
-.sel-table th{background:#f5f5f3;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e8e6;text-align:left}
-.sel-table td{padding:7px 10px;border-bottom:1px solid #f5f5f3;vertical-align:middle}
+.sel-table th{background:#fbf6ee;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e1d3;text-align:left}
+.sel-table td{padding:7px 10px;border-bottom:1px solid #fbf6ee;vertical-align:middle}
 .sel-table tr:hover td{background:#fafaf8}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -286,7 +300,7 @@ body:not(.role-admin) .admin-only{display:none!important}
       <div class="form-group"><label class="form-label">Email *</label><input id="login-email" type="email" placeholder="you@example.com" required></div>
       <div class="form-group"><label class="form-label">Password *</label><input id="login-pw" type="password" placeholder="Your password" required></div>
       <button type="submit" class="btn btn-primary auth-submit">Sign In</button>
-      <div style="text-align:center;margin-top:14px;font-size:12px"><a href="#" onclick="event.preventDefault();showForgotPassword()" style="color:#185FA5;text-decoration:none">Forgot your password?</a></div>
+      <div style="text-align:center;margin-top:14px;font-size:12px"><a href="#" onclick="event.preventDefault();showForgotPassword()" style="color:#8C2326;text-decoration:none">Forgot your password?</a></div>
     </form>
   </div>
 </div>
@@ -354,7 +368,7 @@ body:not(.role-admin) .admin-only{display:none!important}
       </div>
       <div class="page-header">
         <div class="page-title">Dashboard</div>
-        <span style="font-size:12px;color:#888" id="dash-date"></span>
+        <span style="font-size:12px;color:var(--muted)" id="dash-date"></span>
       </div>
       <div class="stats-grid" id="stats-grid"></div>
       <div class="card">
@@ -659,7 +673,7 @@ body:not(.role-admin) .admin-only{display:none!important}
   <div class="modal">
     <div class="modal-title"><i class="ti ti-lock"></i> Change Your Password</div>
     <div class="form-group"><label class="form-label">Current Password *</label><input id="f-chgpw-cur" type="password" autocomplete="current-password"></div>
-    <div style="font-size:11px;margin-top:-6px;margin-bottom:10px"><a href="#" onclick="event.preventDefault();forgotPasswordFromModal()" style="color:#185FA5;text-decoration:none">Don’t remember your current password?</a></div>
+    <div style="font-size:11px;margin-top:-6px;margin-bottom:10px"><a href="#" onclick="event.preventDefault();forgotPasswordFromModal()" style="color:#8C2326;text-decoration:none">Don’t remember your current password?</a></div>
     <div class="form-group"><label class="form-label">New Password *</label><input id="f-chgpw-new" type="password" placeholder="At least 8 characters" autocomplete="new-password"></div>
     <div class="form-group"><label class="form-label">Confirm New Password *</label><input id="f-chgpw-new2" type="password" autocomplete="new-password"></div>
     <div style="font-size:11px;color:#888;margin-top:-6px;margin-bottom:6px">All your other sessions on other devices will be signed out.</div>
@@ -736,7 +750,7 @@ body:not(.role-admin) .admin-only{display:none!important}
       <button class="btn btn-sm" onclick="selAll('print',false)">Deselect All</button>
       <span class="sel-count" id="sel-print-count">0 selected</span>
     </div>
-    <div style="max-height:360px;overflow-y:auto;border:1px solid #e8e8e6;border-radius:8px">
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e8e1d3;border-radius:8px">
       <table class="sel-table">
         <thead id="sel-print-thead"></thead>
         <tbody id="sel-print-tbody"></tbody>
@@ -767,7 +781,7 @@ body:not(.role-admin) .admin-only{display:none!important}
       <button class="btn btn-sm" onclick="selAll('export',false)">Deselect All</button>
       <span class="sel-count" id="sel-export-count">0 selected</span>
     </div>
-    <div style="max-height:360px;overflow-y:auto;border:1px solid #e8e8e6;border-radius:8px">
+    <div style="max-height:360px;overflow-y:auto;border:1px solid #e8e1d3;border-radius:8px">
       <table class="sel-table">
         <thead id="sel-export-thead"></thead>
         <tbody id="sel-export-tbody"></tbody>
@@ -883,7 +897,7 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('clic
 function populateCatSelect(id){
   const el=document.getElementById(id);
   const prev=el.value;
-  el.innerHTML=state.categories.map(c=>`<option>${c}</option>`).join('')+'<option value="__add__" style="font-style:italic;color:#185FA5">+ Add new category…</option>';
+  el.innerHTML=state.categories.map(c=>`<option>${c}</option>`).join('')+'<option value="__add__" style="font-style:italic;color:#8C2326">+ Add new category…</option>';
   if(prev && state.categories.includes(prev)) el.value=prev;
   el.onchange=async function(){
     if(this.value!=='__add__')return;
@@ -1239,11 +1253,11 @@ function doPrint(){
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',sans-serif;padding:28px;color:#1a1a1a;background:#fff}
-    .header{border-bottom:3px solid #185FA5;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
-    .header h1{font-size:20px;color:#185FA5;font-weight:700}
+    .header{border-bottom:3px solid #8C2326;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+    .header h1{font-size:20px;color:#8C2326;font-weight:700}
     .header .meta{font-size:12px;color:#888;text-align:right;line-height:1.6}
     table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
-    thead tr{background:#185FA5}
+    thead tr{background:#8C2326}
     thead th{color:#fff;padding:9px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px}
     tbody td{padding:8px 10px;border-bottom:1px solid #eee;vertical-align:middle}
     tbody tr:nth-child(even) td{background:#f8f8f6}
@@ -1687,6 +1701,7 @@ async function deleteCat(name){
 
 // ---- RENDER ----
 function renderDashboard(){
+  const now=new Date();
   const d=document.getElementById('dash-date');
   if(d)d.textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
   // Brand-header date strip
@@ -1711,10 +1726,22 @@ function renderDashboard(){
   const lowStock=state.parts.filter(p=>p.qty>0&&p.qty<=p.minQty).length;
   const outOfStock=state.parts.filter(p=>p.qty===0).length;
   if(sg)sg.innerHTML=`
-    <div class="stat-card"><div class="stat-label">Total Parts</div><div class="stat-value">${totalParts}</div><div class="stat-sub">unique items</div></div>
-    <div class="stat-card"><div class="stat-label">Qty on Hand</div><div class="stat-value c-green">${totalQty}</div><div class="stat-sub">all units</div></div>
-    <div class="stat-card"><div class="stat-label">Low Stock</div><div class="stat-value c-amber">${lowStock}</div><div class="stat-sub">need reorder</div></div>
-    <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value c-red">${outOfStock}</div><div class="stat-sub">critical</div></div>`;
+    <div class="stat-card tone-primary">
+      <div class="stat-main"><div class="stat-label">Total Parts</div><div class="stat-value">${totalParts}</div><div class="stat-sub">unique items on file</div></div>
+      <div class="stat-icon"><i class="ti ti-package"></i></div>
+    </div>
+    <div class="stat-card tone-green">
+      <div class="stat-main"><div class="stat-label">Qty on Hand</div><div class="stat-value">${totalQty}</div><div class="stat-sub">total units in stock</div></div>
+      <div class="stat-icon"><i class="ti ti-stack-2"></i></div>
+    </div>
+    <div class="stat-card tone-amber">
+      <div class="stat-main"><div class="stat-label">Low Stock</div><div class="stat-value">${lowStock}</div><div class="stat-sub">need reorder soon</div></div>
+      <div class="stat-icon"><i class="ti ti-alert-triangle"></i></div>
+    </div>
+    <div class="stat-card tone-red">
+      <div class="stat-main"><div class="stat-label">Out of Stock</div><div class="stat-value">${outOfStock}</div><div class="stat-sub">critical — restock now</div></div>
+      <div class="stat-icon"><i class="ti ti-circle-off"></i></div>
+    </div>`;
   const lsl=document.getElementById('low-stock-list');
   const lp=state.parts.filter(p=>p.qty<=p.minQty);
   if(lsl)lsl.innerHTML=lp.length?`<table><thead><tr><th>Part</th><th>Category</th><th>Current Qty</th><th>Min Qty</th><th>Status</th></tr></thead><tbody>${lp.map(p=>{const s=stockStatus(p);return`<tr><td style="font-weight:600">${p.sku?`<span class="part-sku">[${p.sku}]</span>`:''}${p.name}</td><td>${p.category}</td><td>${p.qty} ${p.unit}</td><td>${p.minQty}</td><td><span class="badge ${s.cls}">${s.label}</span></td></tr>`}).join('')}</tbody></table>`:'<div class="empty"><i class="ti ti-circle-check" style="color:#2d6a10;font-size:28px"></i>All stock levels are healthy</div>';
@@ -1745,7 +1772,7 @@ function renderInventory(){
     const s=stockStatus(p);
     return`<tr>
       <td style="color:#bbb;font-size:12px">${i+1}</td>
-      <td style="font-family:monospace;font-weight:600;color:#185FA5">${p.sku||'—'}</td>
+      <td style="font-family:monospace;font-weight:600;color:#8C2326">${p.sku||'—'}</td>
       <td style="font-weight:600">${p.name}${p.desc?`<br><span style="font-size:11px;color:#bbb;font-weight:400">${p.desc}</span>`:''}</td>
       <td>${p.category}</td>
       <td style="color:#555">${(()=>{const list=parseMachines(p.machine);return list.length?list.map(m=>`<span class="machine-chip">${m}</span>`).join(' '):'—'})()}</td>
@@ -1938,7 +1965,7 @@ function renderTrash(){
   const fmtTs=ts=>{if(!ts)return'';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
   const daysLeft=ts=>{if(!ts)return'';const ms=new Date(ts)-new Date();const d=Math.ceil(ms/86400000);return d<=0?'soon':d+' day'+(d===1?'':'s')+' left'};
   tb.innerHTML=items.map(p=>`<tr>
-    <td style="font-family:monospace;font-weight:600;color:#185FA5">${p.sku||'—'}</td>
+    <td style="font-family:monospace;font-weight:600;color:#8C2326">${p.sku||'—'}</td>
     <td style="font-weight:600">${p.name}</td>
     <td>${p.category}</td>
     <td>${p.qty} ${p.unit}</td>
