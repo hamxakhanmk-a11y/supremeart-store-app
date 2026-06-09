@@ -24,8 +24,8 @@
 body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--text);background:var(--page-bg);height:100vh;overflow:hidden}
 .app{display:flex;height:100vh}
 .sidebar{width:222px;min-width:222px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0}
-.logo{padding:1rem 1.1rem 0.9rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem;background:linear-gradient(135deg,#fff 0%,#fbf6ee 100%);text-align:center}
-.sidebar-logo-img{display:block;margin:0 auto 8px;max-width:140px;max-height:62px;width:auto;height:auto;object-fit:contain}
+.logo{padding:1rem 1.1rem 0.9rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem;text-align:center;background:transparent}
+.sidebar-logo-img{display:block;margin:0 auto 8px;max-width:150px;max-height:70px;width:auto;height:auto;object-fit:contain;background:transparent;mix-blend-mode:multiply}
 .logo-title{font-size:14px;font-weight:700;color:var(--primary);letter-spacing:0.2px}
 .logo-sub{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 1.1rem;font-size:13px;cursor:pointer;color:#5b5249;transition:all 0.15s;border-left:3px solid transparent;margin:1px 0}
@@ -156,7 +156,7 @@ input:focus,select:focus{outline:none;border-color:#8C2326;box-shadow:0 0 0 3px 
 .auth-screen{position:fixed;inset:0;background:#fbf6ee;display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem}
 .auth-card{background:#fff;border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,0.10);padding:2rem 1.75rem;width:400px;max-width:96vw}
 .auth-logo{text-align:center;margin-bottom:1.5rem}
-.auth-logo-img{display:block;margin:0 auto 10px;max-width:200px;max-height:90px;width:auto;height:auto;object-fit:contain}
+.auth-logo-img{display:block;margin:0 auto 10px;max-width:220px;max-height:100px;width:auto;height:auto;object-fit:contain;background:transparent;mix-blend-mode:multiply}
 .auth-logo-title{font-size:16px;font-weight:600;color:#1a1a1a}
 .auth-logo-sub{font-size:12px;color:#888;margin-top:2px}
 .auth-title{font-size:18px;font-weight:600;text-align:center;margin-bottom:6px}
@@ -193,10 +193,7 @@ body:not(.role-admin) .admin-only{display:none!important}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d6cdb9;border-radius:3px}
 /* ===== Brand header (top strip across main) ===== */
-.brand-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0 12px;margin:0 0 1.1rem;border-bottom:1px solid var(--border);background:transparent;flex-wrap:wrap}
-.brand-block{display:flex;align-items:center;gap:14px}
-.brand-logo-img{height:46px;width:auto;max-width:120px;object-fit:contain;display:block}
-.brand-text{line-height:1.2;border-left:1px solid var(--border);padding-left:14px}
+.brand-header{display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:14px 0 12px;margin:0 0 1.1rem;border-bottom:1px solid var(--border);background:transparent;flex-wrap:wrap}
 .brand-name{font-size:15px;font-weight:700;color:var(--primary);letter-spacing:0.2px}
 .brand-sub{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;margin-top:3px}
 .brand-date{text-align:right;line-height:1.25;color:var(--muted)}
@@ -216,8 +213,8 @@ body:not(.role-admin) .admin-only{display:none!important}
 .hero-btn-primary:hover{background:#fdf4f4;transform:translateY(-1px)}
 .hero-btn-ghost{background:rgba(255,255,255,0.14);color:#fff;border:1px solid rgba(255,255,255,0.35)}
 .hero-btn-ghost:hover{background:rgba(255,255,255,0.22)}
-.hero-mark{position:absolute;right:1.75rem;top:50%;transform:translateY(-50%);width:170px;height:130px;border-radius:18px;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:center;z-index:1;padding:14px 18px;box-shadow:0 10px 30px rgba(0,0,0,0.18);border:1px solid rgba(255,255,255,0.4)}
-.hero-logo-img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
+.hero-mark{position:absolute;right:2rem;top:50%;transform:translateY(-50%);width:200px;height:140px;display:flex;align-items:center;justify-content:center;z-index:1;background:transparent;opacity:0.95}
+.hero-logo-img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;filter:brightness(0) invert(1);opacity:0.9}
 @media (max-width:760px){.hero-mark{display:none}}
 /* ===== Stat cards — HR-style with icon tile ===== */
 .stats-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
@@ -331,15 +328,8 @@ body:not(.role-admin) .admin-only{display:none!important}
 
   <div class="main">
 
-    <!-- BRAND HEADER -->
+    <!-- BRAND HEADER (date strip; sidebar already shows the logo + name) -->
     <div class="brand-header no-print">
-      <div class="brand-block">
-        <img src="/logo.png" alt="Supreme Art" class="brand-logo-img">
-        <div class="brand-text">
-          <div class="brand-name">Parts Store</div>
-          <div class="brand-sub">Stock Management</div>
-        </div>
-      </div>
       <div class="brand-date">
         <div class="brand-date-day" id="brand-date-day">—</div>
         <div class="brand-date-full" id="brand-date-full">—</div>
