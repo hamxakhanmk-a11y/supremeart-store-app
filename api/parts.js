@@ -12,7 +12,8 @@ module.exports = async (req, res) => {
       const rows = await sql`
         SELECT id, sku, name, category, machine, module, unit, qty,
                min_qty     AS "minQty",
-               description AS "desc"
+               description AS "desc",
+               image_url   AS "imageUrl"
         FROM parts
         WHERE module = ${mod} AND deleted_at IS NULL
         ORDER BY id
@@ -23,7 +24,7 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const body = await parseBody(req);
       const mod = normalizeModule(body.module);
-      const { sku, name, category, machine, unit, minQty, desc } = body;
+      const { sku, name, category, machine, unit, minQty, desc, imageUrl } = body;
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       if (!category)             return res.status(400).json({ error: 'Category required' });
       const skuTrim = (sku || '').trim();
@@ -46,13 +47,13 @@ module.exports = async (req, res) => {
       }
       try {
         const rows = await sql`
-          INSERT INTO parts (sku, name, category, machine, module, unit, qty, min_qty, description)
+          INSERT INTO parts (sku, name, category, machine, module, unit, qty, min_qty, description, image_url)
           VALUES (
             ${skuVal}, ${name.trim()}, ${category}, ${machine || ''}, ${mod}, ${unit || 'pcs'},
-            0, ${minQty || 0}, ${desc || ''}
+            0, ${minQty || 0}, ${desc || ''}, ${imageUrl || null}
           )
           RETURNING id, sku, name, category, machine, module, unit, qty,
-                    min_qty AS "minQty", description AS "desc"
+                    min_qty AS "minQty", description AS "desc", image_url AS "imageUrl"
         `;
         return res.json(rows[0]);
       } catch (e) {
@@ -65,7 +66,9 @@ module.exports = async (req, res) => {
 
     if (req.method === 'PUT') {
       const body = await parseBody(req);
-      const { id, sku, name, category, machine, unit, qty, minQty, desc } = body;
+      const { id, sku, name, category, machine, unit, qty, minQty, desc, imageUrl } = body;
+      const imageProvided = Object.prototype.hasOwnProperty.call(body, 'imageUrl');
+      const imageVal = imageUrl ? imageUrl : null;
       if (!id)                   return res.status(400).json({ error: 'ID required' });
       if (!name || !name.trim()) return res.status(400).json({ error: 'Name required' });
       const skuTrim = (sku || '').trim();
@@ -84,22 +87,45 @@ module.exports = async (req, res) => {
       }
       try {
         if (qtyVal === null) {
-          await sql`
-            UPDATE parts
-            SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
-                machine = ${machine || ''},
-                unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
-            WHERE id = ${id}
-          `;
+          if (imageProvided) {
+            await sql`
+              UPDATE parts
+              SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+                  machine = ${machine || ''},
+                  unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''},
+                  image_url = ${imageVal}
+              WHERE id = ${id}
+            `;
+          } else {
+            await sql`
+              UPDATE parts
+              SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+                  machine = ${machine || ''},
+                  unit = ${unit}, min_qty = ${minQty || 0}, description = ${desc || ''}
+              WHERE id = ${id}
+            `;
+          }
         } else {
-          await sql`
-            UPDATE parts
-            SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
-                machine = ${machine || ''},
-                unit = ${unit}, qty = ${qtyVal},
-                min_qty = ${minQty || 0}, description = ${desc || ''}
-            WHERE id = ${id}
-          `;
+          if (imageProvided) {
+            await sql`
+              UPDATE parts
+              SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+                  machine = ${machine || ''},
+                  unit = ${unit}, qty = ${qtyVal},
+                  min_qty = ${minQty || 0}, description = ${desc || ''},
+                  image_url = ${imageVal}
+              WHERE id = ${id}
+            `;
+          } else {
+            await sql`
+              UPDATE parts
+              SET sku = ${skuVal}, name = ${name.trim()}, category = ${category},
+                  machine = ${machine || ''},
+                  unit = ${unit}, qty = ${qtyVal},
+                  min_qty = ${minQty || 0}, description = ${desc || ''}
+              WHERE id = ${id}
+            `;
+          }
           // Only log if qty actually changed
           if (partInfo && beforeQty !== qtyVal) {
             const diff = qtyVal - beforeQty;

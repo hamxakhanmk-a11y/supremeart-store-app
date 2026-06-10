@@ -188,6 +188,26 @@ body:not(.role-admin) .admin-only{display:none!important}
 .sel-table th{background:#fbf6ee;padding:7px 10px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;border-bottom:1px solid #e8e1d3;text-align:left}
 .sel-table td{padding:7px 10px;border-bottom:1px solid #fbf6ee;vertical-align:middle}
 .sel-table tr:hover td{background:#fafaf8}
+/* ===== Image upload (parts) ===== */
+.img-uploader{display:flex;gap:12px;align-items:flex-start}
+.img-preview{width:110px;height:110px;border:2px dashed #d8cdb5;border-radius:10px;background:#fbf6ee;display:flex;align-items:center;justify-content:center;color:#b3a489;font-size:11px;overflow:hidden;flex-shrink:0;cursor:pointer;text-align:center;padding:6px}
+.img-preview:hover{border-color:var(--primary);color:var(--primary)}
+.img-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.img-controls{flex:1;display:flex;flex-direction:column;gap:6px;font-size:12px;color:#666}
+.img-controls .img-hint{font-size:11px;color:#999}
+.img-controls input[type=file]{display:none}
+.img-controls .btn-sm{align-self:flex-start}
+.img-status{font-size:11px;color:var(--primary);font-weight:600;min-height:14px}
+/* ===== Inventory thumbnail ===== */
+.inv-name-cell{display:flex;align-items:center;gap:10px}
+.inv-thumb{width:44px;height:44px;border-radius:8px;background:#fbf6ee;border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#bbac90;font-size:18px;cursor:pointer;transition:transform 0.15s}
+.inv-thumb:hover{transform:scale(1.05);border-color:var(--primary)}
+.inv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+/* ===== Image lightbox ===== */
+.img-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.78);display:none;align-items:center;justify-content:center;z-index:3000;padding:2rem;cursor:zoom-out}
+.img-lightbox.open{display:flex}
+.img-lightbox img{max-width:92vw;max-height:88vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.img-lightbox-close{position:absolute;top:20px;right:24px;color:#fff;font-size:30px;background:rgba(0,0,0,0.4);width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d6cdb9;border-radius:3px}
@@ -570,6 +590,22 @@ body:not(.role-admin) .admin-only{display:none!important}
 <div class="modal-overlay" id="modal-addPart">
   <div class="modal">
     <div class="modal-title"><i class="ti ti-package"></i> Add New Part</div>
+    <div class="form-group">
+      <label class="form-label">Photo</label>
+      <div class="img-uploader">
+        <div class="img-preview" id="f-part-img-preview" onclick="document.getElementById('f-part-img-file').click()">
+          <span><i class="ti ti-camera" style="font-size:22px;display:block;margin-bottom:4px"></i>Click to add photo</span>
+        </div>
+        <div class="img-controls">
+          <input type="file" id="f-part-img-file" accept="image/*" onchange="handleImagePick('add',this.files[0])">
+          <button type="button" class="btn btn-sm" onclick="document.getElementById('f-part-img-file').click()"><i class="ti ti-upload"></i> Choose photo</button>
+          <button type="button" class="btn btn-sm" id="f-part-img-clear" style="display:none" onclick="clearImagePick('add')"><i class="ti ti-x"></i> Remove</button>
+          <div class="img-hint">JPG / PNG / WEBP — auto-resized to 1200 px, ~5 MB max.</div>
+          <div class="img-status" id="f-part-img-status"></div>
+          <input type="hidden" id="f-part-img-url">
+        </div>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-part-sku" placeholder="e.g. BRG-6204"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-part-name" placeholder="e.g. Bearing 6204"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-part-cat"></select></div>
@@ -709,6 +745,22 @@ body:not(.role-admin) .admin-only{display:none!important}
   <div class="modal">
     <div class="modal-title"><i class="ti ti-edit"></i> Edit Part</div>
     <input type="hidden" id="f-edit-id">
+    <div class="form-group">
+      <label class="form-label">Photo</label>
+      <div class="img-uploader">
+        <div class="img-preview" id="f-edit-img-preview" onclick="document.getElementById('f-edit-img-file').click()">
+          <span><i class="ti ti-camera" style="font-size:22px;display:block;margin-bottom:4px"></i>Click to add photo</span>
+        </div>
+        <div class="img-controls">
+          <input type="file" id="f-edit-img-file" accept="image/*" onchange="handleImagePick('edit',this.files[0])">
+          <button type="button" class="btn btn-sm" onclick="document.getElementById('f-edit-img-file').click()"><i class="ti ti-upload"></i> Choose / Replace</button>
+          <button type="button" class="btn btn-sm" id="f-edit-img-clear" style="display:none" onclick="clearImagePick('edit')"><i class="ti ti-x"></i> Remove</button>
+          <div class="img-hint">JPG / PNG / WEBP — auto-resized to 1200 px, ~5 MB max.</div>
+          <div class="img-status" id="f-edit-img-status"></div>
+          <input type="hidden" id="f-edit-img-url">
+        </div>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label">SKU / Part No.</label><input id="f-edit-sku"></div>
     <div class="form-group"><label class="form-label">Part Name *</label><input id="f-edit-name"></div>
     <div class="form-group"><label class="form-label">Category *</label><select id="f-edit-cat"></select></div>
@@ -792,6 +844,12 @@ body:not(.role-admin) .admin-only{display:none!important}
       <button class="btn btn-excel" onclick="doExport()"><i class="ti ti-file-spreadsheet"></i> Export to Excel</button>
     </div>
   </div>
+</div>
+
+<!-- Image lightbox (click thumbnails to enlarge) -->
+<div class="img-lightbox" id="img-lightbox" onclick="closeLightbox()">
+  <button class="img-lightbox-close" onclick="event.stopPropagation();closeLightbox()" aria-label="Close"><i class="ti ti-x"></i></button>
+  <img id="img-lightbox-img" alt="">
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -888,7 +946,7 @@ async function showPage(id,el){
 function openModal(id){
   if(id==='addIn'){document.getElementById('f-in-date').value=today();resetPartCombo('f-in-part')}
   if(id==='addOut'){document.getElementById('f-out-date').value=today();resetPartCombo('f-out-part')}
-  if(id==='addPart'){populateCatSelect('f-part-cat');populateMachineSelect('f-part-machine','')}
+  if(id==='addPart'){populateCatSelect('f-part-cat');populateMachineSelect('f-part-machine','');resetImagePick('add')}
   document.getElementById('modal-'+id).classList.add('open');
 }
 function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
@@ -1390,6 +1448,120 @@ const infoDialog=(title,message)=>alertDialog({title,message,variant:'info'});
 // Local-state refresh: re-render without hitting the network.
 function refresh(){window._balCache=null;renderAll();}
 
+// ===== Image upload (parts) =====
+// Picked-file state per modal: { add: {blob, previewUrl}, edit: {...} }
+const pickedImage = { add: null, edit: null };
+
+function setImageStatus(which, msg, isErr){
+  const el = document.getElementById('f-'+(which==='add'?'part':'edit')+'-img-status');
+  if (el) { el.textContent = msg || ''; el.style.color = isErr ? '#A32D2D' : 'var(--primary)'; }
+}
+
+function showImageInPreview(which, src){
+  const id = which==='add' ? 'f-part-img-preview' : 'f-edit-img-preview';
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (src) {
+    el.innerHTML = '<img src="'+src+'" alt="Preview">';
+    document.getElementById('f-'+(which==='add'?'part':'edit')+'-img-clear').style.display = '';
+  } else {
+    el.innerHTML = '<span><i class="ti ti-camera" style="font-size:22px;display:block;margin-bottom:4px"></i>Click to add photo</span>';
+    document.getElementById('f-'+(which==='add'?'part':'edit')+'-img-clear').style.display = 'none';
+  }
+}
+
+function resetImagePick(which){
+  const cur = pickedImage[which];
+  if (cur && cur.previewUrl) try { URL.revokeObjectURL(cur.previewUrl); } catch(_){}
+  pickedImage[which] = null;
+  const fileInput = document.getElementById('f-'+(which==='add'?'part':'edit')+'-img-file');
+  if (fileInput) fileInput.value = '';
+  document.getElementById('f-'+(which==='add'?'part':'edit')+'-img-url').value = '';
+  showImageInPreview(which, null);
+  setImageStatus(which, '');
+}
+
+function clearImagePick(which){
+  resetImagePick(which);
+}
+
+async function handleImagePick(which, file){
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { await warnDialog('Not an image','Please choose a JPG, PNG, or WEBP file.'); return; }
+  // Show local preview immediately
+  const previewUrl = URL.createObjectURL(file);
+  pickedImage[which] = { file, previewUrl };
+  showImageInPreview(which, previewUrl);
+  // Clear any previously saved URL — the new file will replace it
+  document.getElementById('f-'+(which==='add'?'part':'edit')+'-img-url').value = '';
+  setImageStatus(which, 'Ready to upload on save');
+}
+
+// Resize an image File/Blob to a max edge of `maxDim` and re-encode as JPEG.
+async function resizeImage(file, maxDim=1200, quality=0.85){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+        else       { w = Math.round(w * (maxDim / h)); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        URL.revokeObjectURL(url);
+        if (!blob) return reject(new Error('Could not encode image'));
+        resolve(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read image')); };
+    img.src = url;
+  });
+}
+
+// Upload the currently picked image for `which` modal. Returns the public URL,
+// or null if nothing is picked. Throws on error.
+async function uploadPickedImage(which){
+  const picked = pickedImage[which];
+  if (!picked) return null;
+  setImageStatus(which, 'Uploading…');
+  const blob = await resizeImage(picked.file);
+  const safe = (picked.file.name || 'part.jpg').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,60) + '.jpg';
+  const resp = await fetch('/api/upload?filename=' + encodeURIComponent(safe), {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg' },
+    body: blob,
+    credentials: 'same-origin'
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || ('Upload failed ('+resp.status+')'));
+  setImageStatus(which, 'Uploaded');
+  return data.url;
+}
+
+// Best-effort delete of a previously stored blob (e.g. when replacing an image)
+async function deleteRemoteImage(url){
+  if (!url) return;
+  try { await fetch('/api/upload?url='+encodeURIComponent(url), { method:'DELETE', credentials:'same-origin' }); } catch(_){}
+}
+
+function openLightbox(src){
+  const lb = document.getElementById('img-lightbox');
+  const im = document.getElementById('img-lightbox-img');
+  if (!lb || !im) return;
+  im.src = src;
+  lb.classList.add('open');
+}
+function closeLightbox(){
+  const lb = document.getElementById('img-lightbox');
+  if (lb) lb.classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
 async function savePart(){
   const sku=document.getElementById('f-part-sku').value.trim();
   const name=document.getElementById('f-part-name').value.trim();
@@ -1407,6 +1579,7 @@ async function savePart(){
     }
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
+    resetImagePick('add');
     refresh();
   }
 
@@ -1418,6 +1591,13 @@ async function savePart(){
     return mergeIntoExisting(local);
   }
 
+  // Upload picked image (if any) — only after we've confirmed this is a new part.
+  let imageUrl = document.getElementById('f-part-img-url').value || null;
+  try {
+    const uploaded = await uploadPickedImage('add');
+    if (uploaded) imageUrl = uploaded;
+  } catch (e) { await errorDialog('Photo upload failed', e.message); return; }
+
   try{
     const newPart=await apiFetch('/api/parts','POST',{
       sku,name,
@@ -1426,7 +1606,8 @@ async function savePart(){
       machine:getMachineMultiValue('f-part-machine'),
       unit:document.getElementById('f-part-unit').value,
       minQty:parseInt(document.getElementById('f-part-min').value)||0,
-      desc:document.getElementById('f-part-desc').value.trim()
+      desc:document.getElementById('f-part-desc').value.trim(),
+      imageUrl:imageUrl
     });
     state.parts.push(newPart);
     if(qty>0){
@@ -1436,6 +1617,7 @@ async function savePart(){
     }
     closeModal('addPart');
     fields.forEach(id=>document.getElementById(id).value='');
+    resetImagePick('add');
     refresh();
   }catch(e){
     if(e.status===409 && e.data && e.data.existing){
@@ -1551,6 +1733,10 @@ function openEditPart(id){
   document.getElementById('f-edit-qty').value=p.qty;
   document.getElementById('f-edit-min').value=p.minQty;
   document.getElementById('f-edit-desc').value=p.desc||'';
+  // Reset any prior pick, then preload the saved image (if the part has one).
+  resetImagePick('edit');
+  document.getElementById('f-edit-img-url').value = p.imageUrl || '';
+  if (p.imageUrl) showImageInPreview('edit', p.imageUrl);
   openModal('editPart');
 }
 
@@ -1559,6 +1745,18 @@ async function updatePart(){
   const sku=document.getElementById('f-edit-sku').value.trim();
   const name=document.getElementById('f-edit-name').value.trim();
   if(!name){await warnDialog('Part name required','Enter a name for this part.');return;}
+
+  // Resolve final image URL:
+  //   - if a new file is picked, upload it
+  //   - else use whatever is in the hidden field (existing URL or '' after Remove)
+  const partBefore = state.parts.find(x=>x.id===id);
+  const oldImageUrl = partBefore ? (partBefore.imageUrl || null) : null;
+  let finalImageUrl = document.getElementById('f-edit-img-url').value || null;
+  try {
+    const uploaded = await uploadPickedImage('edit');
+    if (uploaded) finalImageUrl = uploaded;
+  } catch (e) { await errorDialog('Photo upload failed', e.message); return; }
+
   try{
     const qtyRaw=document.getElementById('f-edit-qty').value;
     const qty=qtyRaw===''?undefined:Math.max(0,parseInt(qtyRaw)||0);
@@ -1569,16 +1767,21 @@ async function updatePart(){
       unit:document.getElementById('f-edit-unit').value,
       qty,
       minQty:parseInt(document.getElementById('f-edit-min').value)||0,
-      desc:document.getElementById('f-edit-desc').value.trim()
+      desc:document.getElementById('f-edit-desc').value.trim(),
+      imageUrl:finalImageUrl
     };
     await apiFetch('/api/parts','PUT',payload);
     const p=state.parts.find(x=>x.id===id);
     if(p){
       p.sku=sku||null;p.name=name;p.category=payload.category;p.machine=payload.machine;
       p.unit=payload.unit;p.minQty=payload.minQty;p.desc=payload.desc;
+      p.imageUrl=finalImageUrl;
       if(qty!==undefined)p.qty=qty;
     }
+    // Best-effort: clean up the previous blob if the image was replaced or removed.
+    if (oldImageUrl && oldImageUrl !== finalImageUrl) deleteRemoteImage(oldImageUrl);
     closeModal('editPart');
+    resetImagePick('edit');
     refresh();
   }catch(e){await errorDialog('Could not update part',e.message);}
 }
@@ -1773,7 +1976,17 @@ function renderInventory(){
     return`<tr>
       <td style="color:#bbb;font-size:12px">${i+1}</td>
       <td style="font-family:monospace;font-weight:600;color:#8C2326">${p.sku||'—'}</td>
-      <td style="font-weight:600">${p.name}${p.desc?`<br><span style="font-size:11px;color:#bbb;font-weight:400">${p.desc}</span>`:''}</td>
+      <td>
+        <div class="inv-name-cell">
+          <div class="inv-thumb" ${p.imageUrl?`onclick="openLightbox('${p.imageUrl}')" title="Click to enlarge"`:''}>
+            ${p.imageUrl?`<img src="${p.imageUrl}" alt="">`:'<i class="ti ti-photo"></i>'}
+          </div>
+          <div style="min-width:0">
+            <div style="font-weight:600">${p.name}</div>
+            ${p.desc?`<div style="font-size:11px;color:#bbb;font-weight:400;margin-top:2px">${p.desc}</div>`:''}
+          </div>
+        </div>
+      </td>
       <td>${p.category}</td>
       <td style="color:#555">${(()=>{const list=parseMachines(p.machine);return list.length?list.map(m=>`<span class="machine-chip">${m}</span>`).join(' '):'—'})()}</td>
       <td style="color:#888">${p.unit}</td>
