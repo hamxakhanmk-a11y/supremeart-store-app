@@ -21,8 +21,11 @@ module.exports = async (req, res) => {
     const user = await requireWrite(req, res);
     if (!user) return;
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return res.status(500).json({ error: 'Image storage is not configured (BLOB_READ_WRITE_TOKEN missing). Create a Vercel Blob store in the project Storage tab.' });
+    // Vercel auto-authenticates the SDK via OIDC when BLOB_STORE_ID is wired
+    // by the Storage integration. Older setups use BLOB_READ_WRITE_TOKEN.
+    // If neither is present we know the store isn't connected to this project.
+    if (!process.env.BLOB_STORE_ID && !process.env.BLOB_READ_WRITE_TOKEN) {
+      return res.status(500).json({ error: 'Image storage is not configured. Open the project Storage tab in Vercel and connect a Blob store.' });
     }
 
     // DELETE: remove a previously uploaded image when a part is updated/deleted
